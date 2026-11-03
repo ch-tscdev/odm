@@ -708,6 +708,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, description, kind, spec }),
     }),
+  deleteVersion: (packageId: string, versionId: string) =>
+    request<void>(`/software/packages/${packageId}/versions/${versionId}`, { method: 'DELETE' }),
   updatePackage: (id: string, description: string | null, spec: PackageSpec, name?: string, dependsOn?: string[]) =>
     request<void>(`/software/packages/${id}`, { method: 'PUT', body: JSON.stringify({ description, spec, name, dependsOn }) }),
 

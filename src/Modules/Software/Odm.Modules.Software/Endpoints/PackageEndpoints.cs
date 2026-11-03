@@ -239,6 +239,62 @@ internal static partial class PackageEndpoints
             })
             .RequireAuthorization(Policies.Operator);
 
+        // Delete a single PSADT version (database row and ZIP in storage), unless something still relies on it.
+        group.MapDelete("/{id:guid}/versions/{versionId:guid}", async (
+                Guid id, Guid versionId, SoftwareDbContext db, IPackageStorage storage, ILogger<SoftwareModule> logger,
+                CancellationToken ct) =>
+            {
+                var package = await db.Packages.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct);
+                var version = await db.Versions.SingleOrDefaultAsync(v => v.Id == versionId && v.PackageId == id, ct);
+                if (package is null || version is null)
+                {
+                    return Results.NotFound();
+                }
+
+                if (package.Kind != PackageKind.Psadt)
+                {
+                    return Invalid("version", "Only versions of PSADT packages can be deleted.");
+                }
+
+                var newestId = await db.Versions.AsNoTracking()
+                    .Where(v => v.PackageId == id)
+                    .OrderByDescending(v => v.UploadedAt)
+                    .Select(v => v.Id)
+                    .FirstAsync(ct);
+                var pinned = await db.Assignments.AnyAsync(a => a.PinnedVersionId == versionId, ct)
+                             || await db.ProfileItems.AnyAsync(i => i.PinnedVersionId == versionId, ct);
+                var inUse = await db.Installations.AnyAsync(i =>
+                    (i.JobVersionId == versionId && i.Status == InstallStatus.Running) ||
+                    (i.TargetVersionId == versionId && (i.Status == InstallStatus.Pending || i.Status == InstallStatus.Running || i.Status == InstallStatus.Failed)), ct);
+                var installed = await db.Installations.CountAsync(i => i.InstalledVersionId == versionId, ct);
+
+                var reason = VersionDeletionRules.BlockReason(newestId == versionId, pinned, inUse, installed);
+                if (reason is not null)
+                {
+                    return Results.ValidationProblem(
+                        new Dictionary<string, string[]> { ["version"] = [reason] }, statusCode: StatusCodes.Status409Conflict);
+                }
+
+                var key = version.ObjectKey;
+                db.Versions.Remove(version);
+                await db.SaveChangesAsync(ct);
+
+                if (key is not null)
+                {
+                    try
+                    {
+                        await storage.DeleteAsync(key, ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger.LogWarning(ex, "Object {Key} could not be deleted from storage.", key);
+                    }
+                }
+
+                return Results.NoContent();
+            })
+            .RequireAuthorization(Policies.Operator);
+
         group.MapPost("/{id:guid}/versions", async (
                 Guid id, HttpRequest http, SoftwareDbContext db, IPackageStorage storage,
                 DeploymentTrigger trigger, CancellationToken ct) =>

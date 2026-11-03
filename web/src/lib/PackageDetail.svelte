@@ -227,6 +227,19 @@
     }
   }
 
+  let versionError = $state<string | null>(null)
+
+  async function removeVersion(v: VersionDto) {
+    if (!confirm(i18n.t('sw.confirmDeleteVersion', { version: v.version }))) return
+    versionError = null
+    try {
+      await api.deleteVersion(id, v.id)
+      await loadPackage()
+    } catch (e) {
+      versionError = (e instanceof ApiError && e.detail) || i18n.t('sw.versionDeleteFailed')
+    }
+  }
+
   async function removePackage() {
     if (!pkg || !confirm(i18n.t('sw.confirmDelete', { name: pkg.name }))) return
     await api.deletePackage(id)
@@ -282,6 +295,9 @@
 
 {#snippet versionSize(v: VersionDto)}{formatSize(v.sizeBytes)}{/snippet}
 {#snippet versionDate(v: VersionDto)}{i18n.formatDate(v.uploadedAt)}{/snippet}
+{#snippet versionActions(v: VersionDto)}
+  <button class="ghost" onclick={() => removeVersion(v)}>{i18n.t('sw.deleteVersion')}</button>
+{/snippet}
 {#snippet versionSha(v: VersionDto)}<code title={v.sha256 ?? ''}>{(v.sha256 ?? '').slice(0, 12)}…</code>{/snippet}
 
 {#snippet intentCell(a: AssignmentDto)}
@@ -427,7 +443,14 @@
     {#if pkg.versions.length === 0}
       <p class="muted">{i18n.t('sw.noVersions')}</p>
     {:else}
-      <DataTable rows={pkg.versions} columns={versionColumns} rowKey={(v) => v.id} pageSize={25} />
+      {#if versionError}<p class="error" role="alert">{versionError}</p>{/if}
+      <DataTable
+        rows={pkg.versions}
+        columns={versionColumns}
+        rowKey={(v) => v.id}
+        actions={auth.canEdit && pkg.kind === 'Psadt' ? versionActions : undefined}
+        pageSize={25}
+      />
     {/if}
 
     <!-- Zuweisungen -->
