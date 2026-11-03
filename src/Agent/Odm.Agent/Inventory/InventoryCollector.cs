@@ -468,7 +468,8 @@ public sealed partial class InventoryCollector(ILogger<InventoryCollector> logge
             name = name[..colon];
         }
 
-        return new UpdateReport($"{name} {parts[4]} → {parts[5]}", new DateTimeOffset(local));
+        // dpkg.log uses local time; the server stores UTC.
+        return new UpdateReport($"{name} {parts[4]} → {parts[5]}", new DateTimeOffset(local).ToUniversalTime());
     }
 
     // ---- Software ----
