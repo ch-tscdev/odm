@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,12 @@ public sealed class UpdateSchedulingService(
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// Problems inside an open window (no policy, no agent) are logged once per device and window occurrence at
+    /// Information level, not on every pass. Details for every pass are logged at Debug level.
+    /// </summary>
+    private static readonly ConcurrentDictionary<(Guid Device, Guid Window, DateTimeOffset Start), byte> Reported = new();
+
     public async Task RunScheduledAsync(CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
@@ -36,12 +43,14 @@ public sealed class UpdateSchedulingService(
         var windows = await db.Windows.AsNoTracking().ToDictionaryAsync(w => w.Id, ct);
         if (windows.Count == 0)
         {
+            logger.LogDebug("OS updates: no maintenance windows are defined; nothing is scheduled.");
             return; // without a maintenance window nothing is ever updated automatically
         }
 
         var policies = await db.Policies.AsNoTracking().ToDictionaryAsync(p => p.Id, ct);
         var assignments = await db.Assignments.AsNoTracking().OrderBy(a => a.CreatedAt).ToListAsync(ct);
         var groupCache = new Dictionary<Guid, IReadOnlyList<DeviceRef>>();
+        var names = new Dictionary<Guid, string>();
 
         // Policy per device: direct assignment before group; with several groups the oldest assignment wins.
         var policyOf = new Dictionary<Guid, (Guid PolicyId, int Priority)>();
@@ -49,6 +58,7 @@ public sealed class UpdateSchedulingService(
         {
             foreach (var device in await ResolveAsync(a, groupCache, ct))
             {
+                names[device.Id] = device.Name;
                 var priority = (int)a.TargetKind;
                 if (!policyOf.TryGetValue(device.Id, out var current) || priority < current.Priority)
                 {
@@ -65,6 +75,7 @@ public sealed class UpdateSchedulingService(
             var map = a.TargetKind == TargetKind.Device ? direct : viaGroup;
             foreach (var device in await ResolveAsync(a, groupCache, ct))
             {
+                names[device.Id] = device.Name;
                 if (!map.TryGetValue(device.Id, out var set))
                 {
                     map[device.Id] = set = [];
@@ -83,42 +94,96 @@ public sealed class UpdateSchedulingService(
             .ToHashSet();
 
         var started = 0;
-        foreach (var (deviceId, assigned) in policyOf)
+        var inWindow = 0;
+        var candidates = policyOf.Keys.Union(direct.Keys).Union(viaGroup.Keys).ToList();
+        foreach (var deviceId in candidates)
         {
+            var name = names.GetValueOrDefault(deviceId) ?? deviceId.ToString();
+            var hasPolicy = policyOf.TryGetValue(deviceId, out var assigned);
             var effective = direct.TryGetValue(deviceId, out var own) ? own
                 : viaGroup.TryGetValue(deviceId, out var inherited) ? inherited
                 : null;
             if (effective is null)
             {
+                logger.LogDebug("OS updates: {Device} has an update policy but no maintenance window; no automatic runs.", name);
                 continue;
             }
 
-            var policy = policies[assigned.PolicyId];
+            var open = new List<(Guid Id, DateTimeOffset Start, DateTimeOffset End)>();
             foreach (var windowId in effective)
             {
-                if (!windows[windowId].TryGetOccurrence(now, out var start, out var end) ||
-                    existing.Contains((deviceId, windowId, start)))
+                if (windows[windowId].TryGetOccurrence(now, out var start, out var end))
                 {
-                    continue;
+                    open.Add((windowId, start, end));
                 }
-
-                var jobId = await EnqueueAsync(deviceId, policy, end, ct);
-                if (jobId is null)
-                {
-                    break; // no agent registered
-                }
-
-                db.Runs.Add(UpdateRun.Create(deviceId, windowId, start, jobId.Value, now));
-                await db.SaveChangesAsync(ct);
-                existing.Add((deviceId, windowId, start));
-                started++;
-                break; // one run per device and pass
             }
+
+            if (open.Count == 0)
+            {
+                logger.LogDebug(
+                    "OS updates: {Device} is outside its maintenance windows ({Windows}); server time {Now:u}.",
+                    name, string.Join("; ", effective.Select(id => Describe(windows[id]))), now);
+                continue;
+            }
+
+            inWindow++;
+            var first = open[0];
+            if (!hasPolicy)
+            {
+                ReportOnce(deviceId, first.Id, first.Start, () => logger.LogInformation(
+                    "OS updates: maintenance window '{Window}' is open for {Device}, but no update policy is assigned; no run is started.",
+                    windows[first.Id].Name, name));
+                continue;
+            }
+
+            var due = open.Where(o => !existing.Contains((deviceId, o.Id, o.Start))).ToList();
+            if (due.Count == 0)
+            {
+                logger.LogDebug(
+                    "OS updates: {Device} already has a run for the open window '{Window}' (started {Start:u}).",
+                    name, windows[first.Id].Name, first.Start);
+                continue;
+            }
+
+            var target = due[0];
+            var policy = policies[assigned.PolicyId];
+            var jobId = await EnqueueAsync(deviceId, policy, target.End, ct);
+            if (jobId is null)
+            {
+                ReportOnce(deviceId, target.Id, target.Start, () => logger.LogInformation(
+                    "OS updates: maintenance window '{Window}' is open for {Device}, but the device has no registered agent; no run is started.",
+                    windows[target.Id].Name, name));
+                continue;
+            }
+
+            db.Runs.Add(UpdateRun.Create(deviceId, target.Id, target.Start, jobId.Value, now));
+            await db.SaveChangesAsync(ct);
+            existing.Add((deviceId, target.Id, target.Start));
+            started++;
+            logger.LogInformation(
+                "OS updates: run started for {Device} in window '{Window}' with policy '{Policy}' (window ends {End:u}).",
+                name, windows[target.Id].Name, policy.Name, target.End);
         }
 
-        if (started > 0)
+        logger.LogDebug(
+            "OS updates: pass at {Now:u}: {Windows} windows, {Devices} devices with a policy or window, {Open} inside an open window, {Started} runs started.",
+            now, windows.Count, candidates.Count, inWindow, started);
+    }
+
+    private static string Describe(MaintenanceWindow w) =>
+        $"'{w.Name}' {w.Days} {w.StartMinutes / 60:00}:{w.StartMinutes % 60:00} for {w.DurationMinutes} min ({w.TimeZoneId})";
+
+    private static void ReportOnce(Guid deviceId, Guid windowId, DateTimeOffset start, Action log)
+    {
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-2);
+        foreach (var key in Reported.Keys.Where(k => k.Start < cutoff).ToList())
         {
-            logger.LogInformation("Maintenance windows: {Count} update runs started.", started);
+            Reported.TryRemove(key, out _);
+        }
+
+        if (Reported.TryAdd((deviceId, windowId, start), 0))
+        {
+            log();
         }
     }
 

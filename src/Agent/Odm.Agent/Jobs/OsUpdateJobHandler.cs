@@ -45,8 +45,17 @@ public sealed class OsUpdateJobHandler(
             return Failure("Invalid job content.");
         }
 
-        if (DateTimeOffset.UtcNow >= payload.WindowEndsAt - StartBuffer)
+        var now = DateTimeOffset.UtcNow;
+        logger.LogInformation(
+            "OS update job {JobId} received (mode {Mode}, reboot allowed {Reboot}); maintenance window ends {End:u}, device time {Now:u}.",
+            job.Id, payload.Mode, payload.AllowReboot, payload.WindowEndsAt, now);
+
+        if (now >= payload.WindowEndsAt - StartBuffer)
         {
+            // Usually the job reached the agent late (device was off or offline) or the device clock is wrong.
+            logger.LogWarning(
+                "OS update job {JobId} not started: outside the maintenance window. The window ends {End:u}, a run must start at least {Buffer} min before; device time is {Now:u}. Check whether the device was offline or its clock is off.",
+                job.Id, payload.WindowEndsAt, (int)StartBuffer.TotalMinutes, now);
             return Failure("The maintenance window had (almost) ended at start; the run was not started.");
         }
 
@@ -58,9 +67,22 @@ public sealed class OsUpdateJobHandler(
             var result = await updater.RunAsync(payload, workDirectory, ct);
 
             var rebooting = false;
-            if (result.RebootRequired && payload.AllowReboot && DateTimeOffset.UtcNow < payload.WindowEndsAt - RebootBuffer)
+            if (result.RebootRequired && payload.AllowReboot)
             {
-                rebooting = await TryScheduleRebootAsync(ct);
+                if (DateTimeOffset.UtcNow < payload.WindowEndsAt - RebootBuffer)
+                {
+                    rebooting = await TryScheduleRebootAsync(ct);
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Restart required but not scheduled: the maintenance window ends {End:u}, less than {Buffer} min remain.",
+                        payload.WindowEndsAt, (int)RebootBuffer.TotalMinutes);
+                }
+            }
+            else if (result.RebootRequired)
+            {
+                logger.LogInformation("Restart required, but the update policy does not allow restarts.");
             }
 
             var output = new OsUpdateOutput(result.Installed, result.Failed, result.Titles, result.RebootRequired, rebooting, result.Message);
