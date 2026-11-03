@@ -40,6 +40,16 @@ public class DpkgHistoryTests
     }
 
     [Fact]
+    public void Install_time_is_reported_in_utc()
+    {
+        // dpkg.log is in local time; PostgreSQL only accepts offset 0 for timestamptz.
+        var update = Odm.Agent.Inventory.InventoryCollector.ParseDpkgLine(
+            "2024-05-01 06:12:33 upgrade libssl3:amd64 3.0.2-1 3.0.2-2", "amd64");
+        Assert.NotNull(update);
+        Assert.Equal(TimeSpan.Zero, update.InstalledAt.Offset);
+    }
+
+    [Fact]
     public void Foreign_architecture_is_kept()
     {
         var update = Odm.Agent.Inventory.InventoryCollector.ParseDpkgLine(

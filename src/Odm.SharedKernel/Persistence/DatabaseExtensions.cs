@@ -37,6 +37,8 @@ public static class DatabaseExtensions
                 throw new ArgumentOutOfRangeException(nameof(options), options.Provider, null);
         }
 
+        // Timestamps are always stored in UTC, whatever offset they arrive with.
+        builder.AddInterceptors(UtcDateTimeOffsetInterceptor.Instance);
         return builder;
     }
 
