@@ -5,6 +5,7 @@
   import DataTable, { type Column } from './DataTable.svelte'
   import { i18n, type MessageKey } from './i18n.svelte'
   import PackageSpecForm from './PackageSpecForm.svelte'
+  import SecretDialog from './SecretDialog.svelte'
   import { router } from './router.svelte'
   import { allKinds, emptySpec, specToDto } from './spec'
 
@@ -23,6 +24,7 @@
   let secretName = $state('')
   let secretValue = $state('')
   let secretError = $state<string | null>(null)
+  let secretDialog: SecretDialog
 
   const isAdmin = $derived(auth.user?.role === 'Admin')
 
@@ -63,8 +65,14 @@
   async function saveSecret(event: SubmitEvent) {
     event.preventDefault()
     secretError = null
+    const trimmed = secretName.trim()
+    // Values are never shown, so an existing secret is not overwritten from here by accident.
+    if (secrets.some((x) => x.name === trimmed)) {
+      secretError = i18n.t('sw.secrets.exists', { name: trimmed })
+      return
+    }
     try {
-      await api.setSecret(secretName.trim(), secretValue)
+      await api.setSecret(trimmed, secretValue)
       secretName = ''
       secretValue = ''
       secrets = await api.secrets()
@@ -109,6 +117,7 @@
 {/snippet}
 
 {#snippet secretActions(x: SecretDto)}
+  <button class="ghost" onclick={() => secretDialog.open(x.name)}>{i18n.t('sw.secrets.change')}</button>
   <button class="ghost" onclick={() => removeSecret(x)}>{i18n.t('common.delete')}</button>
 {/snippet}
 
@@ -185,6 +194,8 @@
     emptyText={i18n.t('sw.secrets.empty')}
   />
 </section>
+
+<SecretDialog bind:this={secretDialog} onsaved={async () => (secrets = await api.secrets())} />
 
 <style>
   h1 {
