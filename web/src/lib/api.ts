@@ -61,6 +61,10 @@ export interface GroupInput {
   description: string | null
   matchMode: MatchMode
   rules: GroupRule[]
+  /** Catch-all group: only devices in no other group (that counts for catch-all groups). */
+  isCatchAll: boolean
+  /** Devices of this group are excluded from catch-all groups. */
+  countsForCatchAll: boolean
 }
 
 export interface GroupDto extends GroupInput {
@@ -803,8 +807,12 @@ export const api = {
   updateGroup: (id: string, input: GroupInput) =>
     request<GroupDto>(`/groups/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   deleteGroup: (id: string) => request<void>(`/groups/${id}`, { method: 'DELETE' }),
-  previewGroup: (input: GroupInput) =>
-    request<PagedResult<DeviceDto>>('/groups/preview', { method: 'POST', body: JSON.stringify(input) }),
+  /** `id`: the group being edited, so that it is not counted as one of the "other" groups. */
+  previewGroup: (input: GroupInput, id?: string | null) =>
+    request<PagedResult<DeviceDto>>(`/groups/preview${id ? `?id=${encodeURIComponent(id)}` : ''}`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 }
 
 /** Downloads a report as CSV (the Authorization header rules out a plain link). */

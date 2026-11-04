@@ -4,7 +4,9 @@ namespace Odm.Modules.Devices.Application;
 
 public sealed record GroupRuleDto(string Field, string Operator, string Value);
 
-public sealed record GroupRequest(string? Name, string? Description, string? MatchMode, List<GroupRuleDto>? Rules);
+public sealed record GroupRequest(
+    string? Name, string? Description, string? MatchMode, List<GroupRuleDto>? Rules,
+    bool? IsCatchAll = null, bool? CountsForCatchAll = null);
 
 public sealed record GroupDto(
     Guid Id,
@@ -12,7 +14,9 @@ public sealed record GroupDto(
     string? Description,
     string MatchMode,
     IReadOnlyList<GroupRuleDto> Rules,
-    int DeviceCount)
+    int DeviceCount,
+    bool IsCatchAll,
+    bool CountsForCatchAll)
 {
     public static GroupDto From(DeviceGroup g, int deviceCount) => new(
         g.Id,
@@ -20,11 +24,15 @@ public sealed record GroupDto(
         g.Description,
         g.MatchMode.ToString(),
         g.Rules.Select(r => new GroupRuleDto(r.Field.ToString(), r.Operator.ToString(), r.Value)).ToList(),
-        deviceCount);
+        deviceCount,
+        g.IsCatchAll,
+        g.CountsForCatchAll);
 }
 
 /// <summary>Validated input from a <see cref="GroupRequest"/>.</summary>
-public sealed record GroupInput(string Name, string? Description, GroupMatchMode MatchMode, IReadOnlyList<GroupRule> Rules);
+public sealed record GroupInput(
+    string Name, string? Description, GroupMatchMode MatchMode, IReadOnlyList<GroupRule> Rules,
+    bool IsCatchAll = false, bool CountsForCatchAll = true);
 
 public static class GroupRequestParser
 {
@@ -83,7 +91,7 @@ public static class GroupRequestParser
             return false;
         }
 
-        input = new GroupInput(name, request.Description, mode, rules);
+        input = new GroupInput(name, request.Description, mode, rules, request.IsCatchAll ?? false, request.CountsForCatchAll ?? true);
         return true;
     }
 

@@ -33,14 +33,15 @@ internal sealed class DeviceDirectory(DevicesDbContext db) : IDeviceDirectory
 
     public async Task<IReadOnlyList<DeviceRef>> ResolveGroupAsync(Guid groupId, CancellationToken ct)
     {
-        var group = await db.Groups.AsNoTracking().SingleOrDefaultAsync(g => g.Id == groupId, ct);
+        var groups = await db.Groups.AsNoTracking().ToListAsync(ct);
+        var group = groups.SingleOrDefault(g => g.Id == groupId);
         if (group is null)
         {
             return [];
         }
 
         var devices = await db.Devices.AsNoTracking()
-            .Where(GroupFilter.Build(group.MatchMode, group.Rules))
+            .Where(GroupFilter.For(group, groups))
             .ToListAsync(ct);
         return devices.Select(Map).ToList();
     }

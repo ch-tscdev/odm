@@ -24,6 +24,8 @@
   let description = $state('')
   let matchMode = $state<MatchMode>('All')
   let rules = $state<GroupRule[]>([{ field: 'Name', operator: 'StartsWith', value: '' }])
+  let isCatchAll = $state(false)
+  let countsForCatchAll = $state(true)
 
   let loading = $state(true)
   let notFound = $state(false)
@@ -41,6 +43,8 @@
       description: description.trim() || null,
       matchMode,
       rules: rules.map((r) => ({ ...r, value: r.value.trim() })),
+      isCatchAll,
+      countsForCatchAll,
     }
   }
 
@@ -58,6 +62,8 @@
         description = group.description ?? ''
         matchMode = group.matchMode
         rules = group.rules.map((r) => ({ ...r }))
+        isCatchAll = group.isCatchAll
+        countsForCatchAll = group.countsForCatchAll
       }
     } catch {
       notFound = true
@@ -87,14 +93,15 @@
   $effect(() => {
     if (readOnly || loading) return
     const input = toInput()
-    if (input.rules.length === 0 || input.rules.some((r) => r.value === '')) {
+    // A catch-all group may have no rules; a normal group without rules has no members.
+    if ((input.rules.length === 0 && !input.isCatchAll) || input.rules.some((r) => r.value === '')) {
       previewTotal = null
       previewItems = []
       return
     }
     const timer = setTimeout(async () => {
       try {
-        const result = await api.previewGroup(input)
+        const result = await api.previewGroup(input, id)
         previewTotal = result.total
         previewItems = result.items
       } catch {
@@ -151,11 +158,30 @@
         </select>
       </label>
 
+      <div class="options">
+        <label class="check">
+          <input type="checkbox" bind:checked={isCatchAll} disabled={readOnly} />
+          <span>
+            <strong>{i18n.t('groups.catchAll')}</strong>
+            <small>{i18n.t('groups.catchAllHint')}</small>
+          </span>
+        </label>
+        {#if !isCatchAll}
+          <label class="check">
+            <input type="checkbox" bind:checked={countsForCatchAll} disabled={readOnly} />
+            <span>
+              <strong>{i18n.t('groups.countsForCatchAll')}</strong>
+              <small>{i18n.t('groups.countsForCatchAllHint')}</small>
+            </span>
+          </label>
+        {/if}
+      </div>
+
       <fieldset>
-        <legend>{i18n.t('groups.rulesTitle')}</legend>
+        <legend>{isCatchAll ? i18n.t('groups.rulesOptional') : i18n.t('groups.rulesTitle')}</legend>
 
         {#if rules.length === 0}
-          <p class="muted">{i18n.t('groups.noRules')}</p>
+          <p class="muted">{isCatchAll ? i18n.t('groups.noRulesCatchAll') : i18n.t('groups.noRules')}</p>
         {/if}
 
         {#each rules as rule, index (index)}
@@ -265,6 +291,29 @@
     grid-template-columns: 1.2fr 1fr 1.6fr auto;
     gap: 0.5rem;
     align-items: center;
+  }
+  .options {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .check input {
+    margin-top: 0.2rem;
+    min-height: 0;
+  }
+  .check span {
+    display: grid;
+    gap: 0.15rem;
+  }
+  .check small {
+    color: var(--muted);
+    font-size: 0.8rem;
   }
   fieldset > button {
     justify-self: start;

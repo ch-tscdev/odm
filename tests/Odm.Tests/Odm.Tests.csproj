@@ -24,5 +24,6 @@
     <ProjectReference Include="..\..\src\Modules\Identity\Odm.Modules.Identity\Odm.Modules.Identity.csproj" />
     <ProjectReference Include="..\..\src\Modules\OsUpdates\Odm.Modules.OsUpdates\Odm.Modules.OsUpdates.csproj" />
     <ProjectReference Include="..\..\src\Modules\Software\Odm.Modules.Software\Odm.Modules.Software.csproj" />
+    <ProjectReference Include="..\..\src\Odm.Migrations.SqlServer\Odm.Migrations.SqlServer.csproj" />
   </ItemGroup>
 </Project>

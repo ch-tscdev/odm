@@ -21,6 +21,51 @@ public static class GroupFilter
         public string Value { get; } = value;
     }
 
+    /// <summary>Filter of a stored group; catch-all groups need all groups to exclude the members of the others.</summary>
+    public static Expression<Func<Device, bool>> For(DeviceGroup group, IReadOnlyCollection<DeviceGroup> allGroups) =>
+        For(group.Id, group.MatchMode, group.Rules, group.IsCatchAll, allGroups);
+
+    /// <summary>
+    /// Filter of a group definition (also unsaved, for the preview). <paramref name="selfId"/> is the group itself, which is
+    /// never one of the "other" groups. A catch-all group matches its own rules (all devices if it has none) and none of
+    /// the other groups that count for catch-all groups; other catch-all groups never count.
+    /// </summary>
+    public static Expression<Func<Device, bool>> For(
+        Guid? selfId, GroupMatchMode mode, IReadOnlyCollection<GroupRule> rules, bool isCatchAll,
+        IReadOnlyCollection<DeviceGroup> allGroups)
+    {
+        if (!isCatchAll)
+        {
+            return Build(mode, rules);
+        }
+
+        var device = Expression.Parameter(typeof(Device), "d");
+        Expression body = rules.Count == 0 ? Expression.Constant(true) : Rebind(Build(mode, rules), device);
+
+        Expression? inOther = null;
+        foreach (var other in allGroups.Where(g => g.Id != selfId && !g.IsCatchAll && g.CountsForCatchAll && g.Rules.Count > 0))
+        {
+            var predicate = Rebind(Build(other.MatchMode, other.Rules), device);
+            inOther = inOther is null ? predicate : Expression.OrElse(inOther, predicate);
+        }
+
+        if (inOther is not null)
+        {
+            body = Expression.AndAlso(body, Expression.Not(inOther));
+        }
+
+        return Expression.Lambda<Func<Device, bool>>(body, device);
+    }
+
+    /// <summary>Uses the body of a filter with another parameter so that several filters can be combined.</summary>
+    private static Expression Rebind(Expression<Func<Device, bool>> filter, ParameterExpression device) =>
+        new ParameterReplacer(filter.Parameters[0], device).Visit(filter.Body);
+
+    private sealed class ParameterReplacer(ParameterExpression from, ParameterExpression to) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node) => node == from ? to : base.VisitParameter(node);
+    }
+
     /// <summary>A group without rules contains no devices.</summary>
     public static Expression<Func<Device, bool>> Build(GroupMatchMode mode, IReadOnlyCollection<GroupRule> rules)
     {
@@ -61,7 +106,7 @@ public static class GroupFilter
             Expression.Constant(new ValueBox(rule.Value.ToLowerInvariant())),
             nameof(ValueBox.Value));
 
-        return rule.Operator switch
+        Expression comparison = rule.Operator switch
         {
             MatchOperator.Is => Expression.Equal(lowered, value),
             MatchOperator.StartsWith => Expression.Call(lowered, StartsWith, value),
@@ -69,6 +114,10 @@ public static class GroupFilter
             MatchOperator.Contains => Expression.Call(lowered, Contains, value),
             _ => throw new ArgumentOutOfRangeException(nameof(rule), rule.Operator, null)
         };
+
+        // An empty field never matches, explicitly: in SQL "NOT (NULL LIKE ...)" would be NULL (no match), which would wrongly
+        // drop devices with empty fields from catch-all groups; in memory it avoids a NullReferenceException.
+        return Expression.AndAlso(Expression.NotEqual(member, Expression.Constant(null, typeof(string))), comparison);
     }
 
     private static string PropertyName(GroupField field) => field switch

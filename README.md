@@ -38,6 +38,7 @@ Details, S3 storage, migrations and tests: [docs/development.md](docs/developmen
 | [docs/operations.md](docs/operations.md) | operators | Docker Compose, SQL Server, configuration reference, TLS / reverse proxy, backup |
 | [docs/authentication.md](docs/authentication.md) | operators | local accounts, LDAP / Active Directory, OpenID Connect |
 | [docs/agent.md](docs/agent.md) | operators | agent installation, self-update, logging, mTLS |
+| [docs/groups.md](docs/groups.md) | operators | dynamic device groups, catch-all groups |
 | [docs/software-distribution.md](docs/software-distribution.md) | operators | PSADT and repository packages, secrets, profiles, rollouts, uninstall |
 | [docs/os-updates.md](docs/os-updates.md) | operators | update policies, maintenance windows, how the agent updates |
 | [docs/security.md](docs/security.md) | operators, reviewers | threat model, automated checks, verifying releases, known gaps |

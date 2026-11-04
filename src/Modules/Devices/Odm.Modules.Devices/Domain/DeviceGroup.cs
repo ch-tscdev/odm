@@ -44,7 +44,10 @@ public sealed class GroupRule
         new() { Field = field, Operator = op, Value = value.Trim() };
 }
 
-/// <summary>Dynamic device group: members result from the rules.</summary>
+/// <summary>
+/// Dynamic device group: members result from the rules. A catch-all group ("Restgruppe") contains only devices that are in
+/// no other group counting for catch-all groups, optionally narrowed by its own rules.
+/// </summary>
 public sealed class DeviceGroup : Entity
 {
     private readonly List<GroupRule> _rules = [];
@@ -52,24 +55,36 @@ public sealed class DeviceGroup : Entity
     public string Name { get; private set; } = "";
     public string? Description { get; private set; }
     public GroupMatchMode MatchMode { get; private set; }
+
+    /// <summary>Members are the devices in no other group (that counts for catch-all groups); rules are optional.</summary>
+    public bool IsCatchAll { get; private set; }
+
+    /// <summary>Devices of this group are excluded from catch-all groups. Off for broad groups such as "all Windows".</summary>
+    public bool CountsForCatchAll { get; private set; } = true;
     public IReadOnlyList<GroupRule> Rules => _rules;
 
     private DeviceGroup() { }
 
-    public static DeviceGroup Create(string name, string? description, GroupMatchMode mode, IEnumerable<GroupRule> rules)
+    public static DeviceGroup Create(
+        string name, string? description, GroupMatchMode mode, IEnumerable<GroupRule> rules,
+        bool isCatchAll = false, bool countsForCatchAll = true)
     {
         var group = new DeviceGroup();
-        group.Update(name, description, mode, rules);
+        group.Update(name, description, mode, rules, isCatchAll, countsForCatchAll);
         return group;
     }
 
-    public void Update(string name, string? description, GroupMatchMode mode, IEnumerable<GroupRule> rules)
+    public void Update(
+        string name, string? description, GroupMatchMode mode, IEnumerable<GroupRule> rules,
+        bool isCatchAll = false, bool countsForCatchAll = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Name = name.Trim();
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         MatchMode = mode;
+        IsCatchAll = isCatchAll;
+        CountsForCatchAll = countsForCatchAll;
         _rules.Clear();
         _rules.AddRange(rules);
     }

@@ -84,9 +84,15 @@ namespace Odm.Migrations.SqlServer.Devices
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("CountsForCatchAll")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
                         .HasColumnType("nvarchar(1024)");
+
+                    b.Property<bool>("IsCatchAll")
+                        .HasColumnType("bit");
 
                     b.Property<string>("MatchMode")
                         .IsRequired()
