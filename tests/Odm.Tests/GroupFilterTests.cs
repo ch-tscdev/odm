@@ -84,3 +84,72 @@ public class GroupFilterTests
         Assert.Empty(Names(GroupMatchMode.Any));
     }
 }
+
+public class CatchAllGroupTests
+{
+    private static Device NewDevice(string name, OsFamily family, string? user = null)
+    {
+        var device = Device.Register(name, family, family == OsFamily.Windows ? "Windows 11 Pro" : "Ubuntu", "1");
+        device.UpdateAssignment(user, null, null);
+        return device;
+    }
+
+    private static readonly Device[] Devices =
+    [
+        NewDevice("PC-0001", OsFamily.Windows, "anna"),
+        NewDevice("PC-0002", OsFamily.Windows),
+        NewDevice("SRV-01", OsFamily.Windows),
+        NewDevice("lx-01", OsFamily.Linux),
+    ];
+
+    private static DeviceGroup Group(string name, params GroupRule[] rules) =>
+        DeviceGroup.Create(name, null, GroupMatchMode.All, rules);
+
+    private static List<string> Members(DeviceGroup group, params DeviceGroup[] all) =>
+        Devices.Where(GroupFilter.For(group, all).Compile()).Select(d => d.Name).ToList();
+
+    [Fact]
+    public void Catch_all_contains_devices_in_no_other_group()
+    {
+        var servers = Group("Server", GroupRule.Create(GroupField.Name, MatchOperator.StartsWith, "SRV"));
+        var anna = Group("Anna", GroupRule.Create(GroupField.PrimaryUser, MatchOperator.Is, "anna"));
+        var rest = DeviceGroup.Create("Rest", null, GroupMatchMode.All, [], isCatchAll: true);
+
+        // PC-0002 and lx-01 have no primary user: the PrimaryUser rule must not drop them from the catch-all group.
+        Assert.Equal(new[] { "PC-0002", "lx-01" }, Members(rest, servers, anna, rest));
+    }
+
+    [Fact]
+    public void Groups_that_do_not_count_are_ignored()
+    {
+        var windows = DeviceGroup.Create("All Windows", null, GroupMatchMode.All,
+            [GroupRule.Create(GroupField.OsFamily, MatchOperator.Is, "Windows")], countsForCatchAll: false);
+        var servers = Group("Server", GroupRule.Create(GroupField.Name, MatchOperator.StartsWith, "SRV"));
+        var rest = DeviceGroup.Create("Rest", null, GroupMatchMode.All, [], isCatchAll: true);
+
+        Assert.Equal(new[] { "PC-0001", "PC-0002", "lx-01" }, Members(rest, windows, servers, rest));
+    }
+
+    [Fact]
+    public void Own_rules_narrow_the_catch_all_group_and_other_catch_alls_do_not_count()
+    {
+        var servers = Group("Server", GroupRule.Create(GroupField.Name, MatchOperator.StartsWith, "SRV"));
+        var restWindows = DeviceGroup.Create("Rest Windows", null, GroupMatchMode.All,
+            [GroupRule.Create(GroupField.OsFamily, MatchOperator.Is, "Windows")], isCatchAll: true);
+        var restAll = DeviceGroup.Create("Rest", null, GroupMatchMode.All, [], isCatchAll: true);
+
+        Assert.Equal(new[] { "PC-0001", "PC-0002" }, Members(restWindows, servers, restWindows, restAll));
+        Assert.Equal(new[] { "PC-0001", "PC-0002", "lx-01" }, Members(restAll, servers, restWindows, restAll));
+    }
+
+    [Fact]
+    public void Without_other_groups_the_catch_all_contains_everything()
+    {
+        var rest = DeviceGroup.Create("Rest", null, GroupMatchMode.All, [], isCatchAll: true);
+        Assert.Equal(4, Members(rest, rest).Count);
+    }
+
+    [Fact]
+    public void Normal_groups_are_unchanged() =>
+        Assert.Equal(new[] { "SRV-01" }, Members(Group("Server", GroupRule.Create(GroupField.Name, MatchOperator.StartsWith, "srv"))));
+}

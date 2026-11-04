@@ -21,13 +21,14 @@ internal static class DeviceEndpoints
 
             if (groupId is { } id)
             {
-                var deviceGroup = await db.Groups.AsNoTracking().SingleOrDefaultAsync(g => g.Id == id, ct);
+                var groups = await db.Groups.AsNoTracking().ToListAsync(ct);
+                var deviceGroup = groups.SingleOrDefault(g => g.Id == id);
                 if (deviceGroup is null)
                 {
                     return Results.NotFound();
                 }
 
-                query = query.Where(GroupFilter.Build(deviceGroup.MatchMode, deviceGroup.Rules));
+                query = query.Where(GroupFilter.For(deviceGroup, groups));
             }
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -90,9 +91,10 @@ internal static class DeviceEndpoints
             }
 
             var result = new List<DeviceGroupRefDto>();
-            foreach (var g in await db.Groups.AsNoTracking().OrderBy(g => g.Name).ToListAsync(ct))
+            var groups = await db.Groups.AsNoTracking().OrderBy(g => g.Name).ToListAsync(ct);
+            foreach (var g in groups)
             {
-                if (await db.Devices.Where(d => d.Id == id).Where(GroupFilter.Build(g.MatchMode, g.Rules)).AnyAsync(ct))
+                if (await db.Devices.Where(d => d.Id == id).Where(GroupFilter.For(g, groups)).AnyAsync(ct))
                 {
                     result.Add(new DeviceGroupRefDto(g.Id, g.Name, g.Description));
                 }

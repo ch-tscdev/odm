@@ -84,9 +84,15 @@ namespace Odm.Modules.Devices.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("CountsForCatchAll")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
+
+                    b.Property<bool>("IsCatchAll")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("MatchMode")
                         .IsRequired()

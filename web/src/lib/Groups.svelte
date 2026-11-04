@@ -44,6 +44,11 @@
 
 {#snippet nameCell(group: GroupDto)}
   <a href={`#/groups/${group.id}`}>{group.name}</a>
+  {#if group.isCatchAll}
+    <span class="badge run" title={i18n.t('groups.catchAllHint')}>{i18n.t('groups.catchAllBadge')}</span>
+  {:else if !group.countsForCatchAll}
+    <span class="badge" title={i18n.t('groups.countsForCatchAllHint')}>{i18n.t('groups.notCountingBadge')}</span>
+  {/if}
 {/snippet}
 
 {#snippet rowActions(group: GroupDto)}
