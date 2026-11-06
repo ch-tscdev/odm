@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odm.Modules.Agents.Application;
 using Odm.Modules.Agents.Domain;
+using Odm.SharedKernel.Text;
 
 namespace Odm.Modules.Agents.Infrastructure;
 
@@ -35,6 +36,17 @@ public sealed class AgentAuthenticationHandler(
         (value.EndsWith("/agent/v1/heartbeat", StringComparison.OrdinalIgnoreCase) ||
          value.EndsWith("/agent/v1/certificate", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Rejects the request and logs why (the framework logs authentication failures only at a level that is usually off).
+    /// The agent ID is a parsed GUID, the reasons are fixed texts and the path is sanitized against log forging.
+    /// </summary>
+    private AuthenticateResult Reject(Guid? agentId, string failure, string reason)
+    {
+        Logger.LogWarning("Agent request rejected (agent {AgentId}, {Path}): {Reason}.",
+            agentId?.ToString() ?? "-", LogSanitizer.Clean(Request.Path.Value), reason);
+        return AuthenticateResult.Fail(failure);
+    }
+
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.TryGetValue("Authorization", out var header))
@@ -52,7 +64,7 @@ public sealed class AgentAuthenticationHandler(
         var separator = parameter.IndexOf('.');
         if (separator <= 0 || !Guid.TryParse(parameter[..separator], out var agentId))
         {
-            return AuthenticateResult.Fail("Invalid agent credentials.");
+            return Reject(null, "Invalid agent credentials.", "malformed Authorization header");
         }
 
         var secret = parameter[(separator + 1)..];
@@ -62,7 +74,7 @@ public sealed class AgentAuthenticationHandler(
 
         if (credential is null || !CryptographicOperations.FixedTimeEquals(Secrets.Hash(secret), credential.SecretHash))
         {
-            return AuthenticateResult.Fail("Invalid agent credentials.");
+            return Reject(agentId, "Invalid agent credentials.", "unknown or revoked agent, or wrong secret");
         }
 
         var claims = new List<Claim>
@@ -82,7 +94,7 @@ public sealed class AgentAuthenticationHandler(
             // call only heartbeat and certificate request (no access to jobs, packages, secrets).
             if (authority.Mode == AgentMtlsMode.Required && !IsBootstrapPath(Request.Path))
             {
-                return AuthenticateResult.Fail("Client certificate required.");
+                return Reject(agentId, "Client certificate required.", "mTLS Required and the agent has no certificate yet");
             }
 
             claims.Add(new Claim(MtlsClaim, MtlsUnenrolled));
@@ -95,7 +107,7 @@ public sealed class AgentAuthenticationHandler(
             if (certificate is null ||
                 !authority.IsValid(certificate, credential.Id, credential.CertThumbprint, DateTimeOffset.UtcNow))
             {
-                return AuthenticateResult.Fail("Valid client certificate required.");
+                return Reject(agentId, "Valid client certificate required.", "the agent has a certificate but none or an invalid one reached ODM (proxy does not forward it?)");
             }
 
             claims.Add(new Claim(MtlsClaim, MtlsVerified));

@@ -168,6 +168,10 @@ Requirements and behaviour:
 - **Reset:** the device page (administrators) has *Reset certificate*, or `DELETE /api/agents/devices/{deviceId}/certificate`.
   The agent requests a new certificate with its next heartbeat.
 - Back up the CA directory; if it is lost, all agents must be re-registered.
+- **Agent gets 401:** the server logs every rejected agent request with the reason ("Agent request rejected …"), e.g.
+  `docker compose logs odm | grep "Agent request rejected"`. "has a certificate but none … reached ODM" means the agent holds a
+  certificate that does not arrive (proxy without certificate forwarding): fix the path or use *Reset certificate*; the agent
+  then continues with its secret.
 
 ### mTLS behind a reverse proxy
 

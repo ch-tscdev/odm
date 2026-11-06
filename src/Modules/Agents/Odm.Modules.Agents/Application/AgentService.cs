@@ -28,8 +28,11 @@ public sealed class AgentService(
 
     private int HeartbeatSeconds => Math.Clamp(options.Value.HeartbeatSeconds, 10, 3600);
 
-    /// <summary>Registers an agent. Returns null if the token is invalid, expired or used up.</summary>
-    public async Task<RegisterResponse?> RegisterAsync(RegisterRequest request, CancellationToken ct)
+    /// <summary>
+    /// Registers an agent. Returns null if the token is invalid, expired or used up. <paramref name="certificatePath"/>:
+    /// the connection can carry a client certificate, so one may be issued right away.
+    /// </summary>
+    public async Task<RegisterResponse?> RegisterAsync(RegisterRequest request, bool certificatePath, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
         var hash = Secrets.Hash(request.Token);
@@ -59,7 +62,7 @@ public sealed class AgentService(
         // Issue the certificate right at registration. An invalid CSR must not make the registration fail
         // (the token is already used up); the agent then requests the certificate again with the heartbeat.
         IssuedCertificate? issued = null;
-        if (authority.Enabled && !string.IsNullOrWhiteSpace(request.Csr))
+        if (authority.Enabled && certificatePath && !string.IsNullOrWhiteSpace(request.Csr))
         {
             try
             {
