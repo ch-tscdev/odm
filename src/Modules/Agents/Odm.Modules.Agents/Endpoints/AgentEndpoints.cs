@@ -24,7 +24,9 @@ internal static class AgentEndpoints
     {
         var group = endpoints.MapGroup("/agent/v1").WithTags("Agent");
 
-        group.MapPost("/register", async (RegisterRequest request, AgentService service, CancellationToken ct) =>
+        group.MapPost("/register", async (
+                RegisterRequest request, HttpContext http, AgentService service, ClientCertificateProvider certificates,
+                CancellationToken ct) =>
             {
                 var errors = Validate(request.Hostname, request.OsFamily, request.OsName, request.OsVersion, request.AgentVersion);
                 if (string.IsNullOrWhiteSpace(request.Token) || request.Token.Length > 200)
@@ -37,7 +39,9 @@ internal static class AgentEndpoints
                     return Results.ValidationProblem(errors);
                 }
 
-                var response = await service.RegisterAsync(request, ct);
+                // Issue a certificate only if this connection can carry it later (direct TLS or a proxy that forwards it);
+                // otherwise the agent would have to present a certificate that never reaches ODM and would be locked out.
+                var response = await service.RegisterAsync(request, certificates.CanPresentCertificate(http), ct);
                 return response is null ? Results.Unauthorized() : Results.Ok(response);
             })
             .AllowAnonymous()
