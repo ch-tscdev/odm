@@ -17,6 +17,19 @@ using Odm.SharedKernel.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Optional: HTTPS directly at ODM (needed for agent client certificates without a proxy). Tls:CertificateFile and
+// Tls:KeyFile are PEM files; ODM then listens on 8080 (HTTP) and Tls:Port (HTTPS, default 8443).
+if (builder.Configuration["Tls:CertificateFile"] is { Length: > 0 } certificateFile)
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["Kestrel:Endpoints:Http:Url"] = "http://+:8080",
+        ["Kestrel:Endpoints:Https:Url"] = $"https://+:{builder.Configuration.GetValue("Tls:Port", 8443)}",
+        ["Kestrel:Endpoints:Https:Certificate:Path"] = certificateFile,
+        ["Kestrel:Endpoints:Https:Certificate:KeyPath"] = builder.Configuration["Tls:KeyFile"]
+    });
+}
+
 // Order = initialization order. New modules are registered here.
 IModule[] modules =
 [

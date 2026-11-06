@@ -3,12 +3,26 @@
 ## Docker Compose
 
 ```bash
-cp .env.example .env          # set the values below
+cp .env.example .env          # set the required values, then the optional ones you need
 docker compose up -d --build
 ```
 
-ODM listens on <http://localhost:8080>. The compose file starts ODM, PostgreSQL and an S3-compatible store (RustFS).
-Any other S3 service works: adjust `Storage__S3__*`.
+**`.env` is the only file you edit.** Every setting of a Compose installation (variant, addresses, sign-in, agents,
+notifications, retention, logging) is a variable in `.env`; `.env.example` lists all of them with their defaults and
+explanations. The compose files, Caddyfiles and `appsettings.json` stay as delivered, so updates never conflict with your
+configuration. Lists (e-mail recipients, group values, events) are comma-separated.
+
+ODM listens on <http://localhost:8080> (`ODM_PORT`). The default variant starts ODM, PostgreSQL and an S3-compatible store
+(RustFS). Other variants are chosen with `COMPOSE_FILE` in `.env` (Docker Compose 2.24.4 or newer):
+
+| `COMPOSE_FILE` | Variant |
+|---|---|
+| (not set) or `docker-compose.yml` | HTTP on port 8080, PostgreSQL, bundled S3 |
+| `docker-compose.yml:deploy/docker-compose.https.yml` | plus Caddy with HTTPS on 80/443, see [HTTPS with Docker Compose](#https-with-docker-compose) |
+| `docker-compose.yml:deploy/docker-compose.mssql.yml` | SQL Server instead of PostgreSQL (combinable with HTTPS) |
+
+On Windows the separator is `;`. An external database or S3 service is set with `ODM_DB_CONNECTION` or `ODM_S3_*`; the
+bundled container then stays unused.
 
 Required values in `.env`:
 
@@ -20,36 +34,35 @@ Required values in `.env`:
 | `ODM_S3_PASSWORD` | package store password (at least 8 characters) |
 | `ODM_SECRETS_KEY` | master key for stored secrets, `openssl rand -base64 32`. **Keep it safe: without it, stored secrets are unreadable.** |
 
-Optional values: `ODM_PUBLIC_URL` (public address used in agent install scripts), `ODM_AGENT_UPDATE_*`
-(see [agent.md](agent.md)), `ODM_MTLS_MODE`, `ODM_LDAP_*` and the OIDC block in `docker-compose.yml`
-(see [authentication.md](authentication.md)).
-
 ## Configuration reference
 
-Settings come from `appsettings.json` and environment variables (`Section__Key`).
+The server reads `appsettings.json` and environment variables (`Section__Key`). With Docker Compose you set them only
+through the `.env` variable in the last column; Kubernetes uses the Helm values (see below).
 
-| Key | Default | Meaning |
-|---|---|---|
-| `Database:Provider` | `Postgres` | `Postgres` or `SqlServer` |
-| `Database:ConnectionString` | | connection string |
-| `Jwt:Secret` / `Jwt:ExpiryMinutes` | / 60 | session token signing key (min. 32 chars) and lifetime |
-| `Secrets:MasterKey` | | base64 key (32 bytes) for stored secrets |
-| `Storage:S3:*` | | `ServiceUrl`, `Region`, `Bucket`, `AccessKey`, `SecretKey`, `ForcePathStyle` |
-| `Identity:BootstrapAdmin:*` | | initial administrator |
-| `Identity:Ldap:*`, `Identity:Oidc:*` | off | see [authentication.md](authentication.md) |
-| `Software:MaxPackageMegabytes` | 4096 | upload limit for PSADT packages (S3 single upload: 5 GB maximum) |
-| `Software:ReconcileSeconds` | 60 | interval of the desired/actual state reconciliation |
-| `Software:RepoRefreshHours` | 24 | how often auto-updating repository packages are refreshed (0 = never) |
-| `OsUpdates:CheckSeconds` | 60 | how often maintenance windows are evaluated |
-| `Agents:HeartbeatSeconds` | 60 | heartbeat interval handed to agents (minimum 10) |
-| `Agents:PackagesPath` | `agent-packages` | directory with the agent packages served to clients |
-| `Agents:PublicBaseUrl` | | public address for install scripts (set it behind a reverse proxy) |
-| `Agents:Update:*` | off | agent self-update policy, see [agent.md](agent.md) |
-| `Agents:Mtls:*` | off | agent client certificates, see [agent.md](agent.md) |
-| `Audit:RetentionDays` | 365 | audit entries older than this are deleted daily (0 = keep forever) |
-| `Proxy:ForwardedHeaders` | `false` | take client address and scheme from `X-Forwarded-*` (reverse proxy) |
-| `Proxy:TrustedProxies` | empty | addresses / CIDR ranges of trusted proxies; **required** with `Proxy:ForwardedHeaders` (the server does not start without it) |
-| `Proxy:TrustAllProxies` | `false` | believe `X-Forwarded-*` from every peer instead; only if ODM is reachable through the proxy alone (Helm sets it when no ranges are given) |
+| Key | Default | Meaning | `.env` |
+|---|---|---|---|
+| `Database:Provider` | `Postgres` | `Postgres` or `SqlServer` | `COMPOSE_FILE` (SQL Server variant) |
+| `Database:ConnectionString` | | connection string | `ODM_DB_PASSWORD`, `ODM_DB_CONNECTION` |
+| `Jwt:Secret` / `Jwt:ExpiryMinutes` | / 60 | session token signing key (min. 32 chars) and lifetime | `ODM_JWT_SECRET`, `ODM_SESSION_MINUTES` |
+| `Secrets:MasterKey` | | base64 key (32 bytes) for stored secrets | `ODM_SECRETS_KEY` |
+| `Storage:S3:*` | bundled | `ServiceUrl`, `Region`, `Bucket`, `AccessKey`, `SecretKey`, `ForcePathStyle` | `ODM_S3_*` |
+| `Identity:BootstrapAdmin:*` | | initial administrator | `ODM_ADMIN_USER`, `ODM_ADMIN_PASSWORD` |
+| `Identity:Ldap:*`, `Identity:Oidc:*` | off | see [authentication.md](authentication.md) | `ODM_LDAP_*`, `ODM_OIDC_*` |
+| `Software:MaxPackageMegabytes` | 4096 | upload limit for PSADT packages (S3 single upload: 5 GB maximum); also the Caddy limit | `ODM_MAX_PACKAGE_MB` |
+| `Software:ReconcileSeconds` | 60 | interval of the desired/actual state reconciliation | `ODM_RECONCILE_SECONDS` |
+| `Software:RepoRefreshHours` | 24 | how often auto-updating repository packages are refreshed (0 = never) | `ODM_REPO_REFRESH_HOURS` |
+| `OsUpdates:CheckSeconds` | 60 | how often maintenance windows are evaluated | `ODM_OS_UPDATE_CHECK_SECONDS` |
+| `Agents:HeartbeatSeconds` | 60 | heartbeat interval handed to agents (minimum 10) | `ODM_AGENT_HEARTBEAT_SECONDS` |
+| `Agents:PublicBaseUrl` | | public address for install scripts (set it behind a reverse proxy) | `ODM_PUBLIC_URL` |
+| `Agents:Update:*` | off | agent self-update policy, see [agent.md](agent.md) | `ODM_AGENT_UPDATE_*` |
+| `Agents:Mtls:*` | off | agent client certificates, see [agent.md](agent.md) | `ODM_MTLS_*` |
+| `Proxy:ForwardedHeaders` | `false` | take client address and scheme from `X-Forwarded-*` (reverse proxy) | `ODM_PROXY_FORWARDED_HEADERS` |
+| `Proxy:TrustedProxies` | empty | addresses / CIDR ranges of trusted proxies; **required** with `Proxy:ForwardedHeaders` (the server does not start without it) | `ODM_TRUSTED_PROXY` |
+| `Proxy:TrustAllProxies` | `false` | believe `X-Forwarded-*` from every peer instead; only if ODM is reachable through the proxy alone (Helm sets it when no ranges are given) | `ODM_PROXY_TRUST_ALL` |
+| `Tls:CertificateFile` / `KeyFile` / `Port` | / / 8443 | HTTPS directly at ODM with PEM files (in Compose: file names in `./certs`) | `ODM_TLS_CERT`, `ODM_TLS_KEY`, `ODM_TLS_PORT` |
+| `Notifications:*` | off | see [Notifications](#notifications) | `ODM_NOTIFY_*`, `ODM_SMTP_*`, `ODM_WEBHOOK_*` |
+| retention settings | | see [Housekeeping and retention](#housekeeping-and-retention) | `ODM_RETENTION_*` |
+| `Logging:LogLevel:Default` / `Odm` | `Information` | log level of everything / of ODM's own components | `ODM_LOG_LEVEL`, `ODM_LOG_LEVEL_ODM` |
 
 ## Kubernetes (Helm)
 
@@ -107,9 +120,11 @@ ODM runs on PostgreSQL (default) or Microsoft SQL Server 2019 or newer. Select i
   only for development with self-signed certificates.
 - SQL Server compares case-insensitively by default, PostgreSQL case-sensitively. ODM stores user and target names in
   lower case, so the application behaves the same on both.
-- Docker: `docker compose -f deploy/docker-compose.mssql.yml --env-file .env up -d --build` starts ODM with SQL Server 2022
+- Docker: `COMPOSE_FILE=docker-compose.yml:deploy/docker-compose.mssql.yml` in `.env` starts ODM with SQL Server 2022
   (Developer edition; production needs a licence). `ODM_DB_PASSWORD` is the `sa` password there and must satisfy SQL Server
-  rules (8+ characters, upper/lower case, digit, no `;`). Use a dedicated `db_owner` account in production.
+  rules (8+ characters, upper/lower case, digit, no `;`). In production use a dedicated `db_owner` account through
+  `ODM_DB_CONNECTION`. Installations that used the former standalone file (`docker compose -f deploy/docker-compose.mssql.yml`)
+  ran as Compose project `deploy`; set `COMPOSE_PROJECT_NAME=deploy` in `.env` to keep using those containers and volumes.
 - There is no data migration between the two databases.
 
 ## TLS and reverse proxy
@@ -117,12 +132,13 @@ ODM runs on PostgreSQL (default) or Microsoft SQL Server 2019 or newer. Select i
 ### HTTPS with Docker Compose
 
 ```bash
-# .env: ODM_DOMAIN=odm.example.org   (optional: ODM_CADDY_TLS, see below)
-docker compose -f docker-compose.yml -f deploy/docker-compose.https.yml up -d --build
+# .env: COMPOSE_FILE=docker-compose.yml:deploy/docker-compose.https.yml
+#       ODM_DOMAIN=odm.example.org   (optional: ODM_CADDY_TLS, see below)
+docker compose up -d --build
 ```
 
-This adds a [Caddy](https://caddyserver.com) reverse proxy (`deploy/Caddyfile`) on ports 80/443 and removes the direct
-port 8080. It needs Docker Compose 2.24 or newer. Certificates (`ODM_CADDY_TLS`):
+This adds a [Caddy](https://caddyserver.com) reverse proxy (`deploy/Caddyfile`) on ports 80/443 (`ODM_HTTP_PORT`,
+`ODM_HTTPS_PORT`) and removes the direct ports 8080/8443. Certificates (`ODM_CADDY_TLS`):
 
 | Value | Result |
 |---|---|
@@ -130,15 +146,15 @@ port 8080. It needs Docker Compose 2.24 or newer. Certificates (`ODM_CADDY_TLS`)
 | `internal` | Caddy's own CA for private networks; browsers and agents must trust its root certificate (`caddy-data` volume, `pki/authorities/local/root.crt`) |
 | `/certs/fullchain.pem /certs/key.pem` | your own certificate, placed in `./certs` |
 
-The variant sets the forwarded headers (trusted: only the proxy network `ODM_PROXY_SUBNET`), `Agents__PublicBaseUrl` and the
-upload limit (4 GB, as `Software:MaxPackageMegabytes`; change both together). **Agent client certificates (mTLS):** set
+The variant sets the forwarded headers (trusted: only the proxy network `ODM_PROXY_SUBNET`), the public address from
+`ODM_DOMAIN` and Caddy's upload limit from `ODM_MAX_PACKAGE_MB`. **Agent client certificates (mTLS):** set
 `ODM_PROXY_CADDYFILE=./deploy/Caddyfile.mtls` and `ODM_MTLS_MODE=Optional` (or `Required`); Caddy then forwards the agent
 certificate to ODM in the `X-Client-Cert` header, see [agent.md](agent.md#mtls-behind-a-reverse-proxy).
 
 ### General notes
 
 - Agents refuse plain HTTP by default. Terminate TLS either in front of ODM (reverse proxy) or in ODM itself
-  (`Kestrel__Endpoints__Https__Url` plus certificate configuration).
+  (`ODM_TLS_CERT` / `ODM_TLS_KEY`: PEM files in `./certs`, served on port 8443).
 - **Behind a reverse proxy:** set `Proxy:ForwardedHeaders=true` and `Proxy:TrustedProxies` to the proxy addresses (Docker
   Compose: `ODM_PROXY_FORWARDED_HEADERS=true` and `ODM_TRUSTED_PROXY=<address or range>` in `.env`, e.g. `172.18.0.0/16` for a
   proxy in a Docker network), otherwise rate limits apply per proxy instead of
@@ -174,20 +190,21 @@ switching notifications on does not flood you with old history; silent devices a
 Administrators see the setup, can send a test message and browse the recently sent alerts in the UI (*Notifications*, menu *System*). The same is available through `GET /api/notifications` (channels, enabled events, the last 100 alerts, no secrets) and
 `POST /api/notifications/test` (sends a test message and reports the result per channel).
 
-Docker Compose example (`.env` values are passed through `environment:` entries such as `Notifications__Enabled`,
-`Notifications__Email__Host`, `Notifications__Email__To__0`).
+Docker Compose: `ODM_NOTIFY_ENABLED`, `ODM_NOTIFY_EVENTS`, `ODM_SMTP_*` and `ODM_WEBHOOK_*` in `.env` (see `.env.example`);
+several recipients or events are comma-separated, e.g. `ODM_SMTP_TO=it@example.org, oncall@example.org`.
 
 ## Housekeeping and retention
 
 A daily background job deletes old data. Finished work is removed only after its retention period; pending or running
 jobs are never touched. `0` keeps the data forever.
 
-| Setting | Default | Deletes |
-|---|---|---|
-| `Agents:JobRetentionDays` | 90 | finished (succeeded / failed) agent jobs including their output |
-| `Agents:TokenRetentionDays` | 30 | used or expired registration tokens |
-| `OsUpdates:RunRetentionDays` | 365 | finished OS update runs |
-| `Audit:RetentionDays` | 365 | audit log entries |
+| Setting | `.env` | Default | Deletes |
+|---|---|---|---|
+| `Agents:JobRetentionDays` | `ODM_RETENTION_JOBS_DAYS` | 90 | finished (succeeded / failed) agent jobs including their output |
+| `Agents:TokenRetentionDays` | `ODM_RETENTION_TOKENS_DAYS` | 30 | used or expired registration tokens |
+| `OsUpdates:RunRetentionDays` | `ODM_RETENTION_OS_UPDATES_DAYS` | 365 | finished OS update runs and their update history |
+| `Audit:RetentionDays` | `ODM_RETENTION_AUDIT_DAYS` | 365 | audit log entries |
+| `Notifications:RetentionDays` | `ODM_RETENTION_NOTIFICATIONS_DAYS` | 180 | records of sent alerts |
 
 The current state of devices, installations and assignments is not affected; only the history (job output, run records) goes.
 

@@ -6,9 +6,9 @@
 {$ODM_DOMAIN} {
 	tls {$ODM_CADDY_TLS:}
 
-	# Package uploads (match Software__MaxPackageMegabytes)
+	# Package uploads: same limit as ODM (ODM_MAX_PACKAGE_MB in .env)
 	request_body {
-		max_size 4GB
+		max_size {$ODM_MAX_PACKAGE_MB:4096}MB
 	}
 
 	reverse_proxy odm:8080 {

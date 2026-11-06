@@ -7,3 +7,4 @@ dist/
 .env
 *.user
 agent-packages/
+certs/

@@ -199,8 +199,9 @@ flowchart LR
     Devices[Devices with agent] --> ODM
 ```
 
-- One image (multi-stage build: web, server, agent packages). Docker Compose files: `docker-compose.yml` (PostgreSQL) and
-  `deploy/docker-compose.mssql.yml` (SQL Server), `deploy/docker-compose.https.yml` (Caddy reverse proxy with TLS). The Helm chart `deploy/helm/odm` deploys a single ODM instance for Kubernetes.
+- One image (multi-stage build: web, server, agent packages). Docker Compose: `docker-compose.yml` (PostgreSQL) plus the
+  additions `deploy/docker-compose.mssql.yml` (SQL Server) and `deploy/docker-compose.https.yml` (Caddy reverse proxy with TLS),
+  selected with `COMPOSE_FILE`; all settings come from `.env`. The Helm chart `deploy/helm/odm` deploys a single ODM instance for Kubernetes.
 - Agents run as a Windows service or systemd unit (`deploy/odm-agent.service`).
 - State to back up: database, S3 bucket, `ODM_SECRETS_KEY`, CA volume. See [operations](../operations.md).
 

@@ -10,7 +10,7 @@
 	}
 
 	request_body {
-		max_size 4GB
+		max_size {$ODM_MAX_PACKAGE_MB:4096}MB
 	}
 
 	reverse_proxy odm:8080 {
