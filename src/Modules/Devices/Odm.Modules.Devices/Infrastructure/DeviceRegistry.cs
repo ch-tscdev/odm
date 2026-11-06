@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Odm.Modules.Devices.Domain;
 using Odm.SharedKernel.Contracts;
+using Odm.SharedKernel.Text;
 
 namespace Odm.Modules.Devices.Infrastructure;
 
@@ -22,7 +23,8 @@ internal sealed class DeviceRegistry(DevicesDbContext db, ILogger<DeviceRegistry
         if (device is not null)
         {
             device.TryUseReinstall(now);
-            logger.LogInformation("Device {Device} ({Id}) was taken over by a reinstall.", device.Name, device.Id);
+            logger.LogInformation(
+                "Device {Device} ({Id}) was taken over by a reinstall.", LogSanitizer.Clean(device.Name), device.Id);
         }
         else
         {
@@ -32,7 +34,7 @@ internal sealed class DeviceRegistry(DevicesDbContext db, ILogger<DeviceRegistry
             {
                 logger.LogWarning(
                     "Registration with the name of an existing device: new device {Device} ({Id}) waits for approval.",
-                    device.Name, device.Id);
+                    LogSanitizer.Clean(device.Name), device.Id);
             }
         }
 
