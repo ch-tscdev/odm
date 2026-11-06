@@ -41,6 +41,7 @@ internal sealed class DeviceDirectory(DevicesDbContext db) : IDeviceDirectory
         }
 
         var devices = await db.Devices.AsNoTracking()
+            .Where(d => !d.ApprovalPending)
             .Where(GroupFilter.For(group, groups))
             .ToListAsync(ct);
         return devices.Select(Map).ToList();
@@ -50,10 +51,10 @@ internal sealed class DeviceDirectory(DevicesDbContext db) : IDeviceDirectory
     {
         var lowered = userName.Trim().ToLower();
         var devices = await db.Devices.AsNoTracking()
-            .Where(d => d.PrimaryUser != null && d.PrimaryUser.ToLower() == lowered)
+            .Where(d => !d.ApprovalPending && d.PrimaryUser != null && d.PrimaryUser.ToLower() == lowered)
             .ToListAsync(ct);
         return devices.Select(Map).ToList();
     }
 
-    private static DeviceRef Map(Device d) => new(d.Id, d.Name, d.OsFamily.ToString(), d.OsName);
+    private static DeviceRef Map(Device d) => new(d.Id, d.Name, d.OsFamily.ToString(), d.OsName, d.ApprovalPending);
 }

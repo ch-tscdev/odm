@@ -7,6 +7,7 @@ using Odm.Modules.Software.Application;
 using Odm.Modules.Software.Domain;
 using Odm.Modules.Software.Infrastructure;
 using Odm.SharedKernel;
+using Odm.SharedKernel.Contracts;
 
 namespace Odm.Modules.Software.Endpoints;
 
@@ -19,9 +20,14 @@ internal static class AgentDownloadEndpoint
     public static void Map(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/agent/v1/packages/{versionId:guid}/download", async (
-                Guid versionId, ClaimsPrincipal principal, SoftwareDbContext db, IPackageStorage storage, CancellationToken ct) =>
+                Guid versionId, ClaimsPrincipal principal, SoftwareDbContext db, IPackageStorage storage,
+                IDeviceRegistry devices, CancellationToken ct) =>
             {
                 var deviceId = Guid.Parse(principal.FindFirstValue("device_id")!);
+                if (!await devices.IsApprovedAsync(deviceId, ct))
+                {
+                    return Results.NotFound(); // waits for approval: no packages
+                }
 
                 // Only devices for which an installation job with exactly this version is currently running.
                 var allowed = await db.Installations.AnyAsync(

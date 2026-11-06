@@ -135,9 +135,9 @@ public sealed class AgentService(
             .Where(c => c.Id == agentId)
             .ExecuteUpdateAsync(s => s.SetProperty(c => c.LastSeenAt, now), ct);
 
-        // 4. Deliver due jobs
+        // 4. Deliver due jobs (none while the device waits for approval; they stay queued)
         var cutoff = now - RedeliveryAfter;
-        var due = await db.Jobs
+        var due = !await devices.IsApprovedAsync(deviceId, ct) ? new List<AgentJob>() : await db.Jobs
             .Where(j => j.DeviceId == deviceId &&
                         (j.Status == JobStatus.Pending || (j.Status == JobStatus.Delivered && j.DeliveredAt < cutoff)))
             .OrderBy(j => j.CreatedAt)

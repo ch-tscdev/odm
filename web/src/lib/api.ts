@@ -38,6 +38,12 @@ export interface DeviceDto {
   registeredAt: string
   lastSeenAt: string | null
   agentVersion: string | null
+  /** Registered with the name of an existing device: in no group, gets nothing until approved. */
+  approvalPending: boolean
+  /** Host name the agent reports when it differs from the device name. */
+  reportedName: string | null
+  /** A new registration with this name takes the device over until then (once). */
+  reinstallAllowedUntil: string | null
 }
 
 export interface AssignmentInput {
@@ -706,6 +712,10 @@ export const api = {
     query.set('take', String(options.take ?? 100))
     return request<PagedResult<DeviceDto>>(`/devices?${query}`)
   },
+  setReinstall: (id: string, allowed: boolean) =>
+    request<DeviceDto>(`/devices/${id}/reinstall`, { method: 'PUT', body: JSON.stringify({ allowed }) }),
+  approveDevice: (id: string) => request<DeviceDto>(`/devices/${id}/approve`, { method: 'POST' }),
+  acceptDeviceName: (id: string) => request<DeviceDto>(`/devices/${id}/accept-name`, { method: 'POST' }),
   updateAssignment: (id: string, input: AssignmentInput) =>
     request<DeviceDto>(`/devices/${id}/assignment`, { method: 'PUT', body: JSON.stringify(input) }),
 

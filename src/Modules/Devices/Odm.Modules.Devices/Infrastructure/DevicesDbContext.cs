@@ -31,6 +31,7 @@ public sealed class DevicesDbContext(DbContextOptions<DevicesDbContext> options)
             b.Property(d => d.PrimaryUserOrgUnit).HasMaxLength(256);
             b.Property(d => d.CostCenter).HasMaxLength(64);
             b.Property(d => d.AgentVersion).HasMaxLength(32);
+            b.Property(d => d.ReportedName).HasMaxLength(256);
         });
 
         modelBuilder.Entity<DeviceHardware>(b =>
