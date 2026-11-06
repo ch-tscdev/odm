@@ -48,7 +48,8 @@ Settings come from `appsettings.json` and environment variables (`Section__Key`)
 | `Agents:Mtls:*` | off | agent client certificates, see [agent.md](agent.md) |
 | `Audit:RetentionDays` | 365 | audit entries older than this are deleted daily (0 = keep forever) |
 | `Proxy:ForwardedHeaders` | `false` | take client address and scheme from `X-Forwarded-*` (reverse proxy) |
-| `Proxy:TrustedProxies` | empty | addresses / CIDR ranges of trusted proxies; empty = every peer for `X-Forwarded-*`, none for forwarded certificates |
+| `Proxy:TrustedProxies` | empty | addresses / CIDR ranges of trusted proxies; **required** with `Proxy:ForwardedHeaders` (the server does not start without it) |
+| `Proxy:TrustAllProxies` | `false` | believe `X-Forwarded-*` from every peer instead; only if ODM is reachable through the proxy alone (Helm sets it when no ranges are given) |
 
 ## Kubernetes (Helm)
 
@@ -138,9 +139,11 @@ certificate to ODM in the `X-Client-Cert` header, see [agent.md](agent.md#mtls-b
 
 - Agents refuse plain HTTP by default. Terminate TLS either in front of ODM (reverse proxy) or in ODM itself
   (`Kestrel__Endpoints__Https__Url` plus certificate configuration).
-- **Behind a reverse proxy:** set `Proxy:ForwardedHeaders=true` (and `Proxy:TrustedProxies` to the proxy addresses), otherwise
-  rate limits apply per proxy instead of per client; set `Agents:PublicBaseUrl`; raise the proxy upload limit to match
-  `Software:MaxPackageMegabytes`.
+- **Behind a reverse proxy:** set `Proxy:ForwardedHeaders=true` and `Proxy:TrustedProxies` to the proxy addresses (e.g.
+  `Proxy__TrustedProxies__0=172.18.0.0/16` for a proxy in a Docker network), otherwise rate limits apply per proxy instead of
+  per client; set `Agents:PublicBaseUrl`; raise the proxy upload limit to match `Software:MaxPackageMegabytes`. Once all
+  agents use the proxy, publish port 8080 only locally (`ODM_BIND=127.0.0.1` in `.env` when the proxy runs on the same host)
+  or restrict it in the firewall, so nobody can bypass the proxy.
 - **Agent client certificates (mTLS)** need either TLS terminated by ODM itself or a trusted proxy that forwards the
   certificate in a header. See [agent.md](agent.md#client-certificates-mtls).
 
@@ -243,9 +246,15 @@ Administrators see the server version in the top bar of the UI (tooltip: .NET ru
 
 ## Security notes
 
-- Passwords: PBKDF2-HMAC-SHA256 (600 000 iterations, random salt); sign-in is rate limited (10 attempts per minute and IP)
-  with uniform response time for unknown users.
+- Passwords: PBKDF2-HMAC-SHA256 (600 000 iterations, random salt); sign-in is rate limited (10 attempts per minute and IP,
+  and 10 failures per 15 minutes and account) with uniform response time for unknown users.
+- Sessions of local users end at once when the user is deactivated, demoted or deleted or the password changes (security
+  stamp checked on every request); changing the own password ends all other sessions. LDAP and OIDC sessions end when the
+  token expires (`Jwt:ExpiryMinutes`).
 - Agent registration: token (single-use by default, optionally reusable for provisioning; stored as SHA-256 hash, limited validity, use counter consumed atomically), rate limited.
-- Agent operation: random 256-bit secret per agent, stored as a hash on the server; reinstalling revokes the old credentials.
+- Agent operation: random 256-bit secret per agent, stored as a hash on the server; an operator-allowed reinstall revokes the
+  old credentials. A registration never takes over an existing device without that permission (see [agent.md](agent.md)).
+- Every response carries a Content-Security-Policy (resources only from the server itself, no framing), `nosniff`,
+  `Referrer-Policy: no-referrer` and, over HTTPS, HSTS.
 - The web UI keeps its token in `sessionStorage` (per tab).
 - Secrets are stored encrypted (AES-256-GCM) and never shown again; see [software-distribution.md](software-distribution.md#secrets).

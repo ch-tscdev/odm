@@ -64,7 +64,8 @@ agents:
     rolloutPercent: 100
 
 # Reverse proxy / ingress. With the ingress enabled, X-Forwarded-For / -Proto are honoured for the peers in
-# trustedProxies (addresses or CIDR ranges of the ingress controller pods); empty = every peer.
+# trustedProxies (addresses or CIDR ranges of the ingress controller pods). Empty = every peer is believed
+# (Proxy__TrustAllProxies is set); fine as long as the pod is only reachable through the ingress.
 proxy:
   trustedProxies: []     # e.g. ["10.42.0.0/16"]
 

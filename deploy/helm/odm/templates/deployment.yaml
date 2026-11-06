@@ -39,6 +39,11 @@ spec:
             - name: Proxy__TrustedProxies__{{ $i }}
               value: {{ $range | quote }}
             {{- end }}
+            {{- if and .Values.ingress.enabled (not .Values.proxy.trustedProxies) }}
+            # No proxy ranges given: the pod is only reachable through the ingress, so every peer is believed.
+            - name: Proxy__TrustAllProxies
+              value: "true"
+            {{- end }}
             {{- if .Values.mtls.forwardedCertificateHeader }}
             - name: Agents__Mtls__ForwardedCertificateHeader
               value: {{ .Values.mtls.forwardedCertificateHeader | quote }}

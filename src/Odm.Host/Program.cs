@@ -12,6 +12,7 @@ using Odm.Modules.OsUpdates;
 using Odm.Modules.Software;
 using Odm.SharedKernel;
 using Odm.SharedKernel.Net;
+using Odm.Host;
 using Odm.SharedKernel.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -47,12 +48,23 @@ if (!string.IsNullOrWhiteSpace(mtlsMode) && !mtlsMode.Equals("Off", StringCompar
 }
 
 // Behind a reverse proxy (Proxy:ForwardedHeaders=true) client address and scheme come from X-Forwarded-For / -Proto.
-// With Proxy:TrustedProxies (addresses or CIDR ranges) only those peers are believed; without it every peer is.
-// Forwarding a client certificate (Agents:Mtls:ForwardedCertificateHeader) always requires TrustedProxies.
+// Proxy:TrustedProxies (addresses or CIDR ranges) names the peers that are believed. Without it every peer would be
+// believed, so anyone reaching the port directly could fake the client address (rate limits, audit log); the server
+// refuses to start in that case unless Proxy:TrustAllProxies=true is set deliberately (e.g. a pod only reachable via
+// the ingress). Forwarding a client certificate (Agents:Mtls:ForwardedCertificateHeader) always requires TrustedProxies.
 var forwardedHeaders = builder.Configuration.GetValue<bool>("Proxy:ForwardedHeaders");
 if (forwardedHeaders)
 {
     var trusted = TrustedProxies.FromConfiguration(builder.Configuration);
+    var trustAll = builder.Configuration.GetValue<bool>("Proxy:TrustAllProxies");
+    if (trusted.Networks.Count == 0 && !trustAll)
+    {
+        throw new InvalidOperationException(
+            "Proxy:ForwardedHeaders is on but Proxy:TrustedProxies is empty, so every client could fake its address. " +
+            "Set Proxy__TrustedProxies__0 to the address or network of the reverse proxy " +
+            "(or Proxy__TrustAllProxies=true if the server is only reachable through the proxy).");
+    }
+
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -79,6 +91,13 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
+if (forwardedHeaders && builder.Configuration.GetValue<bool>("Proxy:TrustAllProxies") &&
+    TrustedProxies.FromConfiguration(builder.Configuration).Networks.Count == 0)
+{
+    app.Logger.LogWarning(
+        "Proxy:TrustAllProxies is set: X-Forwarded-For is believed from every peer. Make sure the server is reachable only through the proxy.");
+}
+
 // Remember the directly connected peer before forwarded headers replace the remote address: only trusted proxies
 // may hand on a client certificate.
 app.Use((context, next) =>
@@ -91,6 +110,24 @@ if (forwardedHeaders)
 {
     app.UseForwardedHeaders();
 }
+
+// After the forwarded headers, so that HSTS is also sent when TLS ends at the proxy.
+// Security headers for every response (the UI is a single-page app served from the same origin).
+app.Use((context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    headers["Content-Security-Policy"] = SecurityHeaders.ContentSecurityPolicy;
+    if (context.Request.IsHttps)
+    {
+        headers["Strict-Transport-Security"] = "max-age=31536000";
+    }
+
+    return next(context);
+});
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
