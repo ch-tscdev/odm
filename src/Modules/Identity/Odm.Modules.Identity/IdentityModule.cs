@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -73,7 +74,9 @@ public sealed class IdentityModule : IModule
         services.AddSingleton<OidcStateProtector>();
         services.AddSingleton<OidcService>();
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer()
+            .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, _ => { });
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((bearer, jwt) =>
             {
@@ -94,7 +97,10 @@ public sealed class IdentityModule : IModule
 
         services.AddAuthorizationBuilder()
             .AddPolicy(Policies.Admin, p => p.RequireRole(nameof(UserRole.Admin)))
-            .AddPolicy(Policies.Operator, p => p.RequireRole(nameof(UserRole.Operator), nameof(UserRole.Admin)));
+            .AddPolicy(Policies.Operator, p => p.RequireRole(nameof(UserRole.Operator), nameof(UserRole.Admin)))
+            .AddPolicy(Policies.Enrollment, p => p
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, ApiKeyAuthenticationHandler.SchemeName)
+                .RequireRole(ApiKey.Role, nameof(UserRole.Operator), nameof(UserRole.Admin)));
 
         services.AddRateLimiter(limiter =>
         {
@@ -133,6 +139,7 @@ public sealed class IdentityModule : IModule
 
         MapOidc(group);
         Endpoints.UserEndpoints.Map(endpoints);
+        Endpoints.ApiKeyEndpoints.Map(endpoints);
 
         group.MapGet("/me", (ClaimsPrincipal principal) =>
             {

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { api, type AgentPackagesDto, type TokenCreatedDto, type TokenDto } from './api'
+  import ApiKeys from './ApiKeys.svelte'
+  import { auth } from './auth.svelte'
   import DataTable, { type Column } from './DataTable.svelte'
   import { i18n, type MessageKey } from './i18n.svelte'
 
@@ -208,6 +210,10 @@
     <p class="error">{i18n.t('devices.error')}</p>
   {:else}
     <DataTable rows={tokens} {columns} rowKey={(t) => t.id} actions={rowActions} emptyText={i18n.t('enroll.empty')} />
+  {/if}
+
+  {#if auth.isAdmin}
+    <ApiKeys />
   {/if}
 </section>
 

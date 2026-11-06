@@ -33,6 +33,37 @@ up, expired or deleted. Recommendations: as few uses and as short a validity as 
 delete it afterwards, and use HTTPS only. A leaked reusable token lets anyone who can reach the server register devices until then.
 The same install command works for every VM; a device that registers again (reinstall) replaces its earlier credentials.
 
+### Automated provisioning with an API key (one-time token per host)
+
+Instead of a reusable token, automation can fetch a fresh one-time token for every host. An admin creates an **API key** under
+*Enrollment → API keys for automation*. A key has only the role `Enrollment`: it can call `POST /api/agents/tokens` and nothing
+else, and only for one-time tokens valid for at most 24 hours. The plaintext key (`odmk_…`) is shown once; ODM stores only its
+SHA-256 hash. Name, creator, expiry and last use are listed; deleting the key revokes it immediately.
+
+```yaml
+# Ansible: one token per host, created on the control node
+- name: ODM registration token
+  ansible.builtin.uri:
+    url: "{{ odm_url }}/api/agents/tokens"
+    method: POST
+    headers: { X-Api-Key: "{{ odm_api_key }}" }   # from Ansible Vault
+    body_format: json
+    body: { label: "ansible {{ inventory_hostname }}", validHours: 1, maxUses: 1 }
+    status_code: 201
+  register: odm_token
+  delegate_to: localhost
+  no_log: true
+  when: not odm_agent_installed   # e.g. stat of /var/lib/odm-agent/agent-state.json
+
+- name: Install the ODM agent
+  ansible.builtin.shell: "curl -fsSL {{ odm_url }}/api/agent/install.sh | sh -s -- --token '{{ odm_token.json.token }}'"
+  become: true
+  no_log: true
+  when: not odm_agent_installed
+```
+
+Only register hosts that have no agent yet: a registration with the hostname of an existing device replaces that device's credentials.
+
 Without HTTPS scripts and agent refuse to connect (testing only: `-AllowInsecureHttp` / `--allow-insecure-http`).
 Direct downloads with checksums: `GET /api/agent/packages`, `GET /api/agent/download/{platform}`.
 

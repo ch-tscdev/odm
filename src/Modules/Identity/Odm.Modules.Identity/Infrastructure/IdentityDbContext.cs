@@ -10,6 +10,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public const string Schema = "identity";
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,6 +25,16 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             b.Property(u => u.DisplayName).HasMaxLength(256).IsRequired();
             b.Property(u => u.PasswordHash).HasMaxLength(512).IsRequired();
             b.Property(u => u.Role).HasConversion<string>().HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<ApiKey>(b =>
+        {
+            b.ToTable("api_keys");
+            b.HasKey(k => k.Id);
+            b.Property(k => k.Name).HasMaxLength(ApiKey.MaxNameLength).IsRequired();
+            b.HasIndex(k => k.Name).IsUnique();
+            b.Property(k => k.SecretHash).HasMaxLength(64).IsRequired();
+            b.Property(k => k.CreatedBy).HasMaxLength(128).IsRequired();
         });
     }
 }

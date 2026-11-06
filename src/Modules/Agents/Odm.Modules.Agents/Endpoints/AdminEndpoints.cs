@@ -14,8 +14,8 @@ internal static class AdminEndpoints
 {
     public static void Map(IEndpointRouteBuilder endpoints)
     {
-        var tokens = endpoints.MapGroup("/agents/tokens").WithTags("Agents")
-            .RequireAuthorization(Policies.Operator);
+        // Listing and deleting needs an operator; creating is also open to API keys with the role "Enrollment" (automation).
+        var tokens = endpoints.MapGroup("/agents/tokens").WithTags("Agents");
 
         tokens.MapGet("/", async (AgentsDbContext db, CancellationToken ct) =>
         {
@@ -24,10 +24,16 @@ internal static class AdminEndpoints
             return Results.Ok(rows.Select(t =>
                 new TokenDto(
                     t.Id, t.Label, t.CreatedAt, t.ExpiresAt, t.UsedAt, t.StatusAt(now), t.MaxUses, Math.Max(t.UseCount, t.IsUsedUp && t.MaxUses == 1 ? 1 : 0))));
-        });
+        }).RequireAuthorization(Policies.Operator);
 
-        tokens.MapPost("/", async (CreateTokenRequest request, AgentsDbContext db, CancellationToken ct) =>
+        tokens.MapPost("/", async (CreateTokenRequest request, HttpContext http, AgentsDbContext db, CancellationToken ct) =>
         {
+            // Automation only gets one-time tokens with a short life: a leaked token can register at most one device.
+            if (EnrollmentLimits.Applies(http.User) && EnrollmentLimits.Problem(request) is { } limit)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["token"] = [limit] });
+            }
+
             var label = request.Label?.Trim() ?? "";
             if (label.Length is 0 or > 128)
             {
@@ -44,13 +50,13 @@ internal static class AdminEndpoints
 
             return Results.Created($"/api/agents/tokens/{token.Id}",
                 new TokenCreatedDto(token.Id, token.Label, plain, token.ExpiresAt));
-        });
+        }).RequireAuthorization(Policies.Enrollment);
 
         tokens.MapDelete("/{id:guid}", async (Guid id, AgentsDbContext db, CancellationToken ct) =>
         {
             var deleted = await db.Tokens.Where(t => t.Id == id).ExecuteDeleteAsync(ct);
             return deleted == 0 ? Results.NotFound() : Results.NoContent();
-        });
+        }).RequireAuthorization(Policies.Operator);
 
         // Remove a device's certificate binding (lost key, expired certificate): the agent then obtains
         // a new certificate with its secret.
