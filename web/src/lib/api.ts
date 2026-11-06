@@ -693,8 +693,9 @@ export const api = {
   setUserPassword: (id: string, password: string) =>
     request<void>(`/users/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
+  /** Ends all other sessions of the user; returns the new session for this one. */
   changePassword: (currentPassword: string, newPassword: string) =>
-    request<void>('/auth/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+    request<LoginResponse>('/auth/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   oidcProviders: () => request<OidcProviderDto[]>('/auth/oidc/providers'),
   /** User for a freshly obtained token (the session is not set yet at this point). */
   meWithToken: async (token: string): Promise<UserDto> => {

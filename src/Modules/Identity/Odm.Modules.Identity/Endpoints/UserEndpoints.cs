@@ -61,7 +61,8 @@ internal static class UserEndpoints
         });
 
         users.MapPut("/{id:guid}", async (
-            Guid id, UpdateUserRequest request, ClaimsPrincipal principal, IdentityDbContext db, CancellationToken ct) =>
+            Guid id, UpdateUserRequest request, ClaimsPrincipal principal, IdentityDbContext db, SessionValidator sessions,
+            CancellationToken ct) =>
         {
             var user = await db.Users.SingleOrDefaultAsync(u => u.Id == id, ct);
             if (user is null)
@@ -94,12 +95,14 @@ internal static class UserEndpoints
 
             user.Update(displayName, role, active);
             await db.SaveChangesAsync(ct);
+            sessions.Forget(user.Id);
             return Results.Ok(ToDto(user));
         });
 
         // Administrator sets a new password (forgotten password).
         users.MapPost("/{id:guid}/password", async (
-            Guid id, SetPasswordRequest request, IdentityDbContext db, IPasswordHasher hasher, CancellationToken ct) =>
+            Guid id, SetPasswordRequest request, IdentityDbContext db, IPasswordHasher hasher, SessionValidator sessions,
+            CancellationToken ct) =>
         {
             if (!UserRules.IsValidPassword(request.Password))
             {
@@ -114,10 +117,12 @@ internal static class UserEndpoints
 
             user.SetPasswordHash(hasher.Hash(request.Password!));
             await db.SaveChangesAsync(ct);
+            sessions.Forget(user.Id);
             return Results.NoContent();
         });
 
-        users.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal principal, IdentityDbContext db, CancellationToken ct) =>
+        users.MapDelete("/{id:guid}", async (
+            Guid id, ClaimsPrincipal principal, IdentityDbContext db, SessionValidator sessions, CancellationToken ct) =>
         {
             var user = await db.Users.SingleOrDefaultAsync(u => u.Id == id, ct);
             if (user is null)
@@ -137,6 +142,7 @@ internal static class UserEndpoints
 
             db.Users.Remove(user);
             await db.SaveChangesAsync(ct);
+            sessions.Forget(user.Id);
             return Results.NoContent();
         });
 
@@ -144,7 +150,8 @@ internal static class UserEndpoints
         // because the audit middleware skips /api/auth.
         endpoints.MapPost("/auth/password", async (
                 ChangePasswordRequest request, ClaimsPrincipal principal, HttpContext http,
-                IdentityDbContext db, IPasswordHasher hasher, CancellationToken ct) =>
+                IdentityDbContext db, IPasswordHasher hasher, SessionValidator sessions, ITokenService tokens,
+                CancellationToken ct) =>
             {
                 var user = Guid.TryParse(principal.FindFirstValue("sub"), out var id)
                     ? await db.Users.SingleOrDefaultAsync(u => u.Id == id, ct)
@@ -167,8 +174,14 @@ internal static class UserEndpoints
 
                 user.SetPasswordHash(hasher.Hash(request.NewPassword!));
                 await db.SaveChangesAsync(ct);
+                sessions.Forget(user.Id);
                 await AuditAsync(http, user, "success", ct);
-                return Results.NoContent();
+
+                // The new stamp ends all other sessions; this one continues with a new token.
+                var authenticated = new AuthenticatedUser(
+                    user.Id, user.UserName, user.DisplayName, user.Role, SessionValidator.LocalSource, user.SecurityStamp);
+                var (token, expiresAt) = tokens.Create(authenticated);
+                return Results.Ok(new LoginResponse(token, expiresAt, authenticated.ToDto()));
             })
             .RequireAuthorization()
             .RequireRateLimiting("login");

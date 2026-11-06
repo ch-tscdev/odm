@@ -24,15 +24,22 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options) : ITokenServic
         var o = options.Value;
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(o.ExpiryMinutes);
 
+        var claims = new List<Claim>
+        {
+            new("sub", user.Id.ToString()),
+            new("name", user.UserName),
+            new("display_name", user.DisplayName),
+            new("role", user.Role.ToString()),
+            new(SessionValidator.SourceClaim, user.Source)
+        };
+        if (user.SecurityStamp is not null)
+        {
+            claims.Add(new Claim(SessionValidator.StampClaim, user.SecurityStamp));
+        }
+
         var descriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim("sub", user.Id.ToString()),
-                new Claim("name", user.UserName),
-                new Claim("display_name", user.DisplayName),
-                new Claim("role", user.Role.ToString())
-            }),
+            Subject = new ClaimsIdentity(claims),
             Expires = expiresAt.UtcDateTime,
             Issuer = o.Issuer,
             Audience = o.Audience,

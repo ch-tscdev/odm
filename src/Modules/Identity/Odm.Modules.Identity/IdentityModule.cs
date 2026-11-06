@@ -46,6 +46,10 @@ public sealed class IdentityModule : IModule
         services.AddDbContext<IdentityDbContext>((sp, o) =>
             o.UseOdmDatabase(sp.GetRequiredService<IOptions<DatabaseOptions>>().Value, IdentityDbContext.Schema));
 
+        services.AddMemoryCache();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<SessionValidator>();
+        services.AddSingleton<LoginThrottle>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddScoped<IAuthenticationProvider, LocalAuthenticationProvider>();
@@ -93,6 +97,19 @@ public sealed class IdentityModule : IModule
                     NameClaimType = "name",
                     RoleClaimType = "role"
                 };
+
+                // Revocation: tokens of local users are checked against the current security stamp on every request.
+                bearer.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var sessions = context.HttpContext.RequestServices.GetRequiredService<SessionValidator>();
+                        if (!await sessions.IsValidAsync(context.Principal!, context.HttpContext.RequestAborted))
+                        {
+                            context.Fail("The session is no longer valid.");
+                        }
+                    }
+                };
             });
 
         services.AddAuthorizationBuilder()
@@ -120,7 +137,8 @@ public sealed class IdentityModule : IModule
     {
         var group = endpoints.MapGroup("/auth").WithTags("Auth");
 
-        group.MapPost("/login", async (LoginRequest request, AuthService auth, HttpContext http, CancellationToken ct) =>
+        group.MapPost("/login", async (
+                LoginRequest request, AuthService auth, LoginThrottle throttle, HttpContext http, CancellationToken ct) =>
             {
                 if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrEmpty(request.Password))
                 {
@@ -130,7 +148,23 @@ public sealed class IdentityModule : IModule
                     });
                 }
 
+                // Too many failures for this account: same answer as a wrong password, without checking it.
+                if (throttle.IsLocked(request.UserName))
+                {
+                    await AuditSignInAsync(http, "auth.login", request.UserName, null, "locked", ct);
+                    return Results.Unauthorized();
+                }
+
                 var response = await auth.LoginAsync(request.UserName, request.Password, ct);
+                if (response is null)
+                {
+                    throttle.RecordFailure(request.UserName);
+                }
+                else
+                {
+                    throttle.Reset(request.UserName);
+                }
+
                 await AuditSignInAsync(http, "auth.login", request.UserName, response, null, ct);
                 return response is null ? Results.Unauthorized() : Results.Ok(response);
             })

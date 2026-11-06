@@ -35,6 +35,6 @@ public sealed class LocalAuthenticationProvider(IdentityDbContext db, IPasswordH
             return null;
         }
 
-        return new AuthenticatedUser(user.Id, user.UserName, user.DisplayName, user.Role);
+        return new AuthenticatedUser(user.Id, user.UserName, user.DisplayName, user.Role, "local", user.SecurityStamp);
     }
 }
