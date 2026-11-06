@@ -158,7 +158,7 @@ agent's credentials by its SHA-256 thumbprint.
 
 Requirements and behaviour:
 
-- Either ODM terminates TLS itself (`Kestrel__Endpoints__Https__Url` and a server certificate), or a trusted reverse proxy
+- Either ODM terminates TLS itself (`ODM_TLS_CERT` / `ODM_TLS_KEY` in `.env`, port 8443), or a trusted reverse proxy
   forwards the certificate in a header (see below). Certificates are only issued over one of these two paths, so an agent can
   never lock itself out by enrolling over plain HTTP or through a proxy that does not forward certificates.
 - Browsers may prompt for a client certificate on an endpoint that requests one; use a dedicated endpoint or port for agents.
@@ -192,7 +192,8 @@ Security rules:
   variant does this with `header_up`.
 - Do not set `ASPNETCORE_FORWARDEDHEADERS_ENABLED`; use `Proxy:ForwardedHeaders`, which keeps the original peer address for this check.
 
-Docker Compose: `deploy/Caddyfile.mtls` (see [operations.md](operations.md#https-with-docker-compose)). Kubernetes with ingress-nginx:
+Docker Compose: `deploy/Caddyfile.mtls` (see [operations.md](operations.md#https-with-docker-compose)); with your own proxy set
+`ODM_PROXY_FORWARDED_HEADERS`, `ODM_TRUSTED_PROXY` and `ODM_MTLS_FORWARDED_HEADER` in `.env`. Kubernetes with ingress-nginx:
 set `nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "true"`, `auth-tls-verify-client: "optional_no_ca"` and
 `auth-tls-secret` (any secret with a `ca.crt`), `mtls.forwardedCertificateHeader=ssl-client-cert` and `proxy.trustedProxies` with the
 ingress controller's pod range. This path is untested.

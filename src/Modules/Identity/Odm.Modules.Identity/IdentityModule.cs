@@ -71,6 +71,7 @@ public sealed class IdentityModule : IModule
         // Optional: sign-in through OpenID Connect (Entra ID, authentik, Keycloak ...). Nothing happens without a provider.
         services.AddOptions<OidcOptions>()
             .Bind(configuration.GetSection(OidcOptions.SectionName))
+            .PostConfigure(o => o.Normalize())
             .Validate(o => o.Problem() is null,
                 "Identity:Oidc is incomplete (PublicBaseUrl, per provider Id, Authority, ClientId and at least one role value).")
             .ValidateOnStart();

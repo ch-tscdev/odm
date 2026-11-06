@@ -28,7 +28,7 @@ Whether a window is open is decided by the **server**; the agent only receives a
 - The server logs at Information level when a window is open for a device but no run can be started (no policy assigned, no registered agent),
   once per device and window, and every started run.
 - For the reason on every pass (outside the window with the window's days, start and time zone, run already done, policy without window),
-  enable Debug logging for the module, e.g. `Logging__LogLevel__Odm.Modules.OsUpdates=Debug` in Docker Compose. Times in the log are UTC.
+  enable Debug logging (`ODM_LOG_LEVEL_ODM=Debug` in `.env`, then `docker compose up -d`). Times in the log are UTC.
 - The agent logs every received update job with the window end and its own clock, and a warning if it does not start the run because the
   window has (almost) ended (device was offline or its clock is off).
 

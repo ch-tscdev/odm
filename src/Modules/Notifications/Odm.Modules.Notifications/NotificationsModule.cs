@@ -19,6 +19,12 @@ public sealed class NotificationsModule : IModule
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<NotificationOptions>(configuration.GetSection(NotificationOptions.SectionName));
+        // Recipients and events may also be one comma-separated value (a single variable in .env).
+        services.PostConfigure<NotificationOptions>(o =>
+        {
+            o.Events = Odm.SharedKernel.Text.ConfigList.Split(o.Events);
+            o.Email.To = Odm.SharedKernel.Text.ConfigList.Split(o.Email.To);
+        });
         services.AddDbContext<NotificationsDbContext>((sp, o) =>
             o.UseOdmDatabase(sp.GetRequiredService<IOptions<DatabaseOptions>>().Value, NotificationsDbContext.Schema));
 

@@ -23,6 +23,23 @@ public sealed partial class OidcOptions
 
     public bool SecureCookies => PublicBaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Drops providers without any of Id, Authority and ClientId (empty variables from <c>.env</c>) and accepts
+    /// comma-separated lists for scopes and role values.
+    /// </summary>
+    public void Normalize()
+    {
+        Providers.RemoveAll(p =>
+            string.IsNullOrWhiteSpace(p.Id) && string.IsNullOrWhiteSpace(p.Authority) && string.IsNullOrWhiteSpace(p.ClientId));
+        foreach (var p in Providers)
+        {
+            p.Scopes = [.. Odm.SharedKernel.Text.ConfigList.Split(p.Scopes)];
+            p.AdminValues = [.. Odm.SharedKernel.Text.ConfigList.Split(p.AdminValues)];
+            p.OperatorValues = [.. Odm.SharedKernel.Text.ConfigList.Split(p.OperatorValues)];
+            p.ReadOnlyValues = [.. Odm.SharedKernel.Text.ConfigList.Split(p.ReadOnlyValues)];
+        }
+    }
+
     /// <summary>Describes the first problem of the configuration or returns null. Without a provider everything is fine.</summary>
     public string? Problem()
     {

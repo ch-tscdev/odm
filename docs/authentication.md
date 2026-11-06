@@ -53,7 +53,7 @@ Notes:
 
 - There is deliberately no connection without TLS. The server certificate is validated by the system; on Linux the libldap
   configuration applies (e.g. `TLS_CACERT` in `/etc/ldap/ldap.conf` for a private CA).
-- The Docker image contains `libldap`. Compose variables: `ODM_LDAP_*`; other options via `Identity__Ldap__*`.
+- The Docker image contains `libldap`. Docker Compose: every option above is an `ODM_LDAP_*` variable in `.env` (see `.env.example`).
 - Role and display name are re-read at every sign-in; a revoked group takes effect when the token expires (`Jwt:ExpiryMinutes`).
 - Directory users do not appear in a user list; their ID is a stable hash of provider and user name.
 
@@ -82,8 +82,9 @@ Single sign-on with one or more identity providers; each one gets a button on th
 }
 ```
 
-As environment variables: `Identity__Oidc__PublicBaseUrl`, `Identity__Oidc__Providers__0__Id`, `…__0__Authority`,
-`…__0__ClientId`, `…__0__ClientSecret`, `…__0__AdminValues__0`, …
+Docker Compose: one provider through `ODM_OIDC_*` in `.env` (`ODM_OIDC_ID`, `ODM_OIDC_AUTHORITY`, `ODM_OIDC_CLIENT_ID`,
+`ODM_OIDC_CLIENT_SECRET`, `ODM_OIDC_ADMIN_VALUES`, … with comma-separated role values; `PublicBaseUrl` is `ODM_PUBLIC_URL`).
+Several providers at once are configured with environment variables `Identity__Oidc__Providers__<n>__…` (Helm `extraEnv`).
 
 **Redirect URI** at the provider, exactly: `<PublicBaseUrl>/api/auth/oidc/callback`. For `npm run dev` use
 `PublicBaseUrl = http://localhost:5173` (HTTP is only allowed for localhost).
