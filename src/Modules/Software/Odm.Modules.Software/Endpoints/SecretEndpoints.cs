@@ -8,6 +8,7 @@ using Odm.Modules.Software.Application;
 using Odm.Modules.Software.Domain;
 using Odm.Modules.Software.Infrastructure;
 using Odm.SharedKernel;
+using Odm.SharedKernel.Contracts;
 
 namespace Odm.Modules.Software.Endpoints;
 
@@ -76,9 +77,13 @@ internal static class SecretEndpoints
         // Agent: values of the secrets that the currently running job uses in its arguments.
         endpoints.MapPost("/agent/v1/secrets/resolve", async (
                 ResolveSecretsRequest request, ClaimsPrincipal principal, SoftwareDbContext db,
-                SecretProtector protector, CancellationToken ct) =>
+                SecretProtector protector, IDeviceRegistry devices, CancellationToken ct) =>
             {
                 var deviceId = Guid.Parse(principal.FindFirstValue("device_id")!);
+                if (!await devices.IsApprovedAsync(deviceId, ct))
+                {
+                    return Results.NotFound(); // waits for approval: no secrets
+                }
 
                 // Only for a running installation job of this device, and only the secrets referenced there.
                 var installation = await db.Installations.AsNoTracking().SingleOrDefaultAsync(

@@ -39,6 +39,20 @@
     }
   }
 
+  let deviceError = $state<string | null>(null)
+
+  /** Device actions for operators (approval, reinstall, adopt reported name); shows the server's reason on errors. */
+  async function deviceAction(action: () => Promise<DeviceDto>, confirmText?: string) {
+    if (confirmText && !confirm(confirmText)) return
+    deviceError = null
+    try {
+      device = await action()
+      groups = await api.deviceGroups(id)
+    } catch (e) {
+      deviceError = (e instanceof ApiError && e.detail) || i18n.t('common.saveFailed')
+    }
+  }
+
   const statusClass = { Pending: '', Running: 'run', Installed: 'ok', Failed: 'err', Removed: '' } as const
 
   async function load() {
@@ -151,7 +165,38 @@
       <span class="badge" class:ok={isOnline(device)}>
         {isOnline(device) ? i18n.t('devices.online') : i18n.t('devices.offline')}
       </span>
+      {#if device.approvalPending}<span class="badge err">{i18n.t('dev.approval.badge')}</span>{/if}
     </header>
+
+    {#if device.approvalPending}
+      <div class="card notice warn">
+        <strong>{i18n.t('dev.approval.title')}</strong>
+        <p>{i18n.t('dev.approval.text')}</p>
+        {#if auth.canEdit}
+          <div>
+            <button class="primary" onclick={() => deviceAction(() => api.approveDevice(id), i18n.t('dev.approval.confirm', { name: device!.name }))}>
+              {i18n.t('dev.approval.approve')}
+            </button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    {#if device.reportedName}
+      <div class="card notice">
+        <strong>{i18n.t('dev.rename.title', { name: device.reportedName })}</strong>
+        <p>{i18n.t('dev.rename.text')}</p>
+        {#if auth.canEdit}
+          <div>
+            <button onclick={() => deviceAction(() => api.acceptDeviceName(id), i18n.t('dev.rename.confirm', { from: device!.name, to: device!.reportedName ?? '' }))}>
+              {i18n.t('dev.rename.accept')}
+            </button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    {#if deviceError}<p class="error" role="alert">{deviceError}</p>{/if}
 
     <dl class="card facts">
       <div><dt>{i18n.t('devices.os')}</dt><dd>{device.osName} {device.osVersion}</dd></div>
@@ -162,6 +207,20 @@
       <div><dt>{i18n.t('devices.orgUnit')}</dt><dd>{device.orgUnit ?? '–'}</dd></div>
       <div><dt>{i18n.t('devices.costCenter')}</dt><dd>{device.costCenter ?? '–'}</dd></div>
     </dl>
+
+    {#if auth.canEdit}
+      <div class="cert">
+        {#if device.reinstallAllowedUntil}
+          <button class="ghost" onclick={() => deviceAction(() => api.setReinstall(id, false))}>{i18n.t('dev.reinstall.cancel')}</button>
+          <span class="muted">{i18n.t('dev.reinstall.open', { until: i18n.formatDate(device.reinstallAllowedUntil) })}</span>
+        {:else}
+          <button class="ghost" onclick={() => deviceAction(() => api.setReinstall(id, true), i18n.t('dev.reinstall.confirm', { name: device!.name }))}>
+            {i18n.t('dev.reinstall.allow')}
+          </button>
+          <span class="muted">{i18n.t('dev.reinstall.hint')}</span>
+        {/if}
+      </div>
+    {/if}
 
     {#if auth.isAdmin}
       <div class="cert">
@@ -258,6 +317,21 @@
 <MessageDialog bind:this={messageDialog} />
 
 <style>
+  .notice {
+    display: grid;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    border-left: 3px solid var(--accent);
+  }
+  .notice.warn {
+    border-left-color: var(--danger);
+  }
+  .notice p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
   h2 {
     font-size: 1rem;
     margin: 1.5rem 0 0.5rem;

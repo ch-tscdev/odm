@@ -22,7 +22,10 @@ public sealed record OidcProviderDto(string Id, string DisplayName);
 public sealed record LoginResponse(string Token, DateTimeOffset ExpiresAt, UserDto User);
 
 /// <summary>Result of a successful authentication, independent of the provider.</summary>
-public sealed record AuthenticatedUser(Guid Id, string UserName, string DisplayName, UserRole Role)
+/// <param name="Source">Sign-in method: <c>local</c>, <c>ldap</c> or <c>oidc:&lt;provider&gt;</c> (token claim <c>idp</c>).</param>
+/// <param name="SecurityStamp">Local users only: checked on every request, see <see cref="Domain.User.SecurityStamp"/>.</param>
+public sealed record AuthenticatedUser(
+    Guid Id, string UserName, string DisplayName, UserRole Role, string Source = "local", string? SecurityStamp = null)
 {
     public UserDto ToDto() => new(Id, UserName, DisplayName, Role.ToString());
 }

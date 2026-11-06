@@ -26,9 +26,21 @@ public sealed class Device : Entity
     public DateTimeOffset? LastSeenAt { get; private set; }
     public string? AgentVersion { get; private set; }
 
+    /// <summary>Until then a new registration with this device's name takes the device over (reinstall), once.</summary>
+    public DateTimeOffset? ReinstallAllowedUntil { get; private set; }
+
+    /// <summary>
+    /// Registered with the name of an existing device without an allowed reinstall: until an operator approves it, the device
+    /// is in no group and its agent gets no jobs, packages or secrets.
+    /// </summary>
+    public bool ApprovalPending { get; private set; }
+
+    /// <summary>Host name the agent reports when it differs from <see cref="Name"/>; adopted only by an operator.</summary>
+    public string? ReportedName { get; private set; }
+
     private Device() { }
 
-    public static Device Register(string name, OsFamily family, string osName, string osVersion)
+    public static Device Register(string name, OsFamily family, string osName, string osVersion, bool approvalPending = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -38,8 +50,46 @@ public sealed class Device : Entity
             OsFamily = family,
             OsName = osName,
             OsVersion = osVersion,
-            RegisteredAt = DateTimeOffset.UtcNow
+            RegisteredAt = DateTimeOffset.UtcNow,
+            ApprovalPending = approvalPending
         };
+    }
+
+    public void AllowReinstall(DateTimeOffset until) => ReinstallAllowedUntil = until;
+
+    public void CancelReinstall() => ReinstallAllowedUntil = null;
+
+    public bool ReinstallAllowed(DateTimeOffset now) => ReinstallAllowedUntil is { } until && now < until;
+
+    /// <summary>Takes the device over for a reinstall if allowed; the permission is used up.</summary>
+    public bool TryUseReinstall(DateTimeOffset now)
+    {
+        if (!ReinstallAllowed(now))
+        {
+            return false;
+        }
+
+        ReinstallAllowedUntil = null;
+        return true;
+    }
+
+    public void Approve() => ApprovalPending = false;
+
+    /// <summary>Remembers the host name reported by the agent; the device name itself does not change.</summary>
+    public void ReportHostname(string hostname)
+    {
+        var reported = hostname.Trim();
+        ReportedName = reported.Length == 0 || reported == Name ? null : reported;
+    }
+
+    /// <summary>Adopts the reported host name (operator decision).</summary>
+    public void AcceptReportedName()
+    {
+        if (ReportedName is { } reported)
+        {
+            Rename(reported);
+            ReportedName = null;
+        }
     }
 
     public void UpdateAssignment(string? primaryUser, string? primaryUserOrgUnit, string? costCenter)

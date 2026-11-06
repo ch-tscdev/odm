@@ -33,6 +33,9 @@ namespace Odm.Modules.Devices.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<bool>("ApprovalPending")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("CostCenter")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -70,6 +73,13 @@ namespace Odm.Modules.Devices.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("RegisteredAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ReinstallAllowedUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReportedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
 

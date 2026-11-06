@@ -126,5 +126,74 @@ internal static class DeviceEndpoints
                 return Results.Ok(DeviceDto.From(device));
             })
             .RequireAuthorization(Policies.Operator);
+
+        // Allow (for 24 hours, once) that the next registration with this device's name takes the device over.
+        group.MapPut("/{id:guid}/reinstall", async (Guid id, ReinstallRequest request, DevicesDbContext db, CancellationToken ct) =>
+            {
+                var device = await db.Devices.SingleOrDefaultAsync(d => d.Id == id, ct);
+                if (device is null)
+                {
+                    return Results.NotFound();
+                }
+
+                if (request.Allowed)
+                {
+                    device.AllowReinstall(DateTimeOffset.UtcNow.Add(ReinstallWindow));
+                }
+                else
+                {
+                    device.CancelReinstall();
+                }
+
+                await db.SaveChangesAsync(ct);
+                return Results.Ok(DeviceDto.From(device));
+            })
+            .RequireAuthorization(Policies.Operator);
+
+        // Approve a device that registered with the name of an existing device: it becomes a normal device.
+        group.MapPost("/{id:guid}/approve", async (Guid id, DevicesDbContext db, CancellationToken ct) =>
+            {
+                var device = await db.Devices.SingleOrDefaultAsync(d => d.Id == id, ct);
+                if (device is null)
+                {
+                    return Results.NotFound();
+                }
+
+                device.Approve();
+                await db.SaveChangesAsync(ct);
+                return Results.Ok(DeviceDto.From(device));
+            })
+            .RequireAuthorization(Policies.Operator);
+
+        // Adopt the host name the agent reports (renamed machine).
+        group.MapPost("/{id:guid}/accept-name", async (Guid id, DevicesDbContext db, CancellationToken ct) =>
+            {
+                var device = await db.Devices.SingleOrDefaultAsync(d => d.Id == id, ct);
+                if (device is null)
+                {
+                    return Results.NotFound();
+                }
+
+                if (device.ReportedName is not { } reported)
+                {
+                    return Results.Ok(DeviceDto.From(device));
+                }
+
+                var lowered = reported.ToLower();
+                if (await db.Devices.AnyAsync(d => d.Id != id && d.Name.ToLower() == lowered, ct))
+                {
+                    return Results.ValidationProblem(
+                        new Dictionary<string, string[]> { ["name"] = ["Another device already has this name."] },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                device.AcceptReportedName();
+                await db.SaveChangesAsync(ct);
+                return Results.Ok(DeviceDto.From(device));
+            })
+            .RequireAuthorization(Policies.Operator);
     }
+
+    /// <summary>How long an allowed reinstall stays open.</summary>
+    public static readonly TimeSpan ReinstallWindow = TimeSpan.FromHours(24);
 }

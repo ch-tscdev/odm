@@ -109,7 +109,8 @@ public sealed class OidcService(
             }
 
             var user = new AuthenticatedUser(
-                ExternalUserIds.Create($"oidc:{provider.Id}", identity.Subject), identity.UserName, identity.DisplayName, role);
+                ExternalUserIds.Create($"oidc:{provider.Id}", identity.Subject), identity.UserName, identity.DisplayName, role,
+                $"oidc:{provider.Id}");
             var (token, expiresAt) = tokens.Create(user);
             return new OidcResult(new LoginResponse(token, expiresAt, user.ToDto()), null);
         }

@@ -19,11 +19,22 @@ public sealed class User : Entity
     public bool IsActive { get; private set; } = true;
     public DateTimeOffset CreatedAt { get; private set; }
 
+    /// <summary>
+    /// Part of every token of this user. It changes when the role, the active state or the password changes, which makes
+    /// all tokens issued before invalid at once.
+    /// </summary>
+    public string SecurityStamp { get; private set; } = NewStamp();
+
     private User() { }
 
     public void Update(string displayName, UserRole role, bool isActive)
     {
         DisplayName = string.IsNullOrWhiteSpace(displayName) ? UserName : displayName.Trim();
+        if (role != Role || isActive != IsActive)
+        {
+            SecurityStamp = NewStamp();
+        }
+
         Role = role;
         IsActive = isActive;
     }
@@ -32,7 +43,10 @@ public sealed class User : Entity
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
         PasswordHash = passwordHash;
+        SecurityStamp = NewStamp();
     }
+
+    private static string NewStamp() => Guid.NewGuid().ToString("N");
 
     public static string Normalize(string userName) => userName.Trim().ToLowerInvariant();
 

@@ -88,6 +88,11 @@ namespace Odm.Modules.Identity.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(128)

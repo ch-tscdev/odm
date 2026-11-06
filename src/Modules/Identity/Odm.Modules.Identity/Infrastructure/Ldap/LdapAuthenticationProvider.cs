@@ -40,7 +40,7 @@ public sealed class LdapAuthenticationProvider(
 
             var normalized = User.Normalize(userName);
             var display = string.IsNullOrWhiteSpace(user.DisplayName) ? userName.Trim() : user.DisplayName.Trim();
-            return new AuthenticatedUser(ExternalUserIds.Create(Name, normalized), normalized, display, role);
+            return new AuthenticatedUser(ExternalUserIds.Create(Name, normalized), normalized, display, role, "ldap");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

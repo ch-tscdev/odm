@@ -30,12 +30,15 @@ public sealed class AuditLog(AuditDbContext db, IHttpContextAccessor accessor, T
         }
     }
 
-    /// <summary>User name, <c>agent:{id}</c> for agents, otherwise <c>anonymous</c>.</summary>
+    /// <summary>
+    /// User name (with the sign-in method for directory users, e.g. <c>ldap:jdoe</c>, <c>oidc:entra:jdoe</c>, so that they
+    /// cannot be confused with a local account of the same name), <c>agent:{id}</c> for agents, otherwise <c>anonymous</c>.
+    /// </summary>
     public static string ActorOf(ClaimsPrincipal? user)
     {
         if (user?.FindFirstValue("name") is { Length: > 0 } name)
         {
-            return name;
+            return user.FindFirstValue("idp") is { Length: > 0 } source && source != "local" ? $"{source}:{name}" : name;
         }
 
         return user?.FindFirstValue("agent_id") is { Length: > 0 } agent ? $"agent:{agent}" : "anonymous";

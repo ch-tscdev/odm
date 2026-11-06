@@ -88,6 +88,11 @@ namespace Odm.Migrations.SqlServer.Identity
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
 
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(128)

@@ -31,7 +31,7 @@ and pass it to the install command in your provisioning (cloud-init, Ansible, a 
 appears in the device list; there is no approval step. The token is counted per registration and stops working when it is used
 up, expired or deleted. Recommendations: as few uses and as short a validity as the lab needs, one token per environment,
 delete it afterwards, and use HTTPS only. A leaked reusable token lets anyone who can reach the server register devices until then.
-The same install command works for every VM; a device that registers again (reinstall) replaces its earlier credentials.
+The same install command works for every VM.
 
 ### Automated provisioning with an API key (one-time token per host)
 
@@ -62,10 +62,24 @@ SHA-256 hash. Name, creator, expiry and last use are listed; deleting the key re
   when: not odm_agent_installed
 ```
 
-Only register hosts that have no agent yet: a registration with the hostname of an existing device replaces that device's credentials.
+Only register hosts that have no agent yet: a registration with the hostname of an existing device does not take it over but
+creates a new device that waits for approval (see *Reinstalling a device* below).
 
 Without HTTPS scripts and agent refuse to connect (testing only: `-AllowInsecureHttp` / `--allow-insecure-http`).
 Direct downloads with checksums: `GET /api/agent/packages`, `GET /api/agent/download/{platform}`.
+
+### Reinstalling a device, renamed machines
+
+A registration never takes over an existing device by itself, because the token holder would then receive that device's jobs,
+packages and secrets. To reinstall the agent on a device (new OS, lost state directory), click **Allow reinstall** on the device
+page first: for 24 hours the next registration with that device's name takes the device over with its assignments and history,
+once; the previous agent loses access. Without that permission, a registration with an existing name creates a **new device that
+waits for approval**: it is in no group or user target and its agent gets no jobs, packages or secrets. Operators either approve
+it as a separate device or allow the reinstall on the original device and run the installer again.
+
+When a machine is renamed, the agent reports the new host name, but the device keeps its name until an operator clicks
+**Adopt name** on the device page (the list shows "reports as …"). Group rules on the name therefore cannot be triggered by the
+device itself.
 
 ### Providing the agent packages
 

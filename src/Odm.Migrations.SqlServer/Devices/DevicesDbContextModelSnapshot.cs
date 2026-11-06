@@ -33,6 +33,9 @@ namespace Odm.Migrations.SqlServer.Devices
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
 
+                    b.Property<bool>("ApprovalPending")
+                        .HasColumnType("bit");
+
                     b.Property<string>("CostCenter")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
@@ -70,6 +73,13 @@ namespace Odm.Migrations.SqlServer.Devices
 
                     b.Property<DateTimeOffset>("RegisteredAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ReinstallAllowedUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ReportedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
 

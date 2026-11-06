@@ -15,12 +15,18 @@ public sealed record DeviceDto(
     string? CostCenter,
     DateTimeOffset RegisteredAt,
     DateTimeOffset? LastSeenAt,
-    string? AgentVersion)
+    string? AgentVersion,
+    bool ApprovalPending,
+    string? ReportedName,
+    DateTimeOffset? ReinstallAllowedUntil)
 {
     public static DeviceDto From(Device d) => new(
         d.Id, d.Name, d.OsFamily.ToString(), d.OsName, d.OsVersion,
-        d.PrimaryUser, d.PrimaryUserOrgUnit, d.CostCenter, d.RegisteredAt, d.LastSeenAt, d.AgentVersion);
+        d.PrimaryUser, d.PrimaryUserOrgUnit, d.CostCenter, d.RegisteredAt, d.LastSeenAt, d.AgentVersion,
+        d.ApprovalPending, d.ReportedName, d.ReinstallAllowedUntil is { } until && until > DateTimeOffset.UtcNow ? until : null);
 }
+
+public sealed record ReinstallRequest(bool Allowed);
 
 public sealed record DeviceGroupRefDto(Guid Id, string Name, string? Description);
 

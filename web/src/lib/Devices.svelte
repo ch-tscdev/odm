@@ -108,6 +108,12 @@
 
 {#snippet nameCell(device: DeviceDto)}
   <a href={`#/devices/${device.id}`}>{device.name}</a>
+  {#if device.approvalPending}
+    <span class="badge err" title={i18n.t('dev.approval.text')}>{i18n.t('dev.approval.badge')}</span>
+  {/if}
+  {#if device.reportedName}
+    <span class="badge" title={i18n.t('dev.rename.text')}>{i18n.t('dev.rename.badge', { name: device.reportedName })}</span>
+  {/if}
 {/snippet}
 
 {#snippet status(device: DeviceDto)}

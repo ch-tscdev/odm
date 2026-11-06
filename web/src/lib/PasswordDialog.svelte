@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api, ApiError } from './api'
+  import { auth } from './auth.svelte'
   import { i18n } from './i18n.svelte'
 
   let dialog: HTMLDialogElement
@@ -26,7 +27,7 @@
     }
     busy = true
     try {
-      await api.changePassword(current, next)
+      auth.replaceSession(await api.changePassword(current, next))
       done = true
     } catch (e) {
       error = e instanceof ApiError && e.detail ? i18n.server(e.detail) : i18n.t('password.failed')

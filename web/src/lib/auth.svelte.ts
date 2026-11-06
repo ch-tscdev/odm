@@ -47,6 +47,12 @@ class AuthStore {
     return this.session?.user.role === 'Admin'
   }
 
+  /** Continues with a new token (e.g. after a password change, which ends all earlier sessions). */
+  replaceSession(response: Session) {
+    this.session = response
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(response))
+  }
+
   async login(userName: string, password: string) {
     const response = await api.login(userName, password)
     this.session = response

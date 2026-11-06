@@ -9,7 +9,10 @@ which gaps are known.
 | Threat | Protection | Gap |
 |---|---|---|
 | Stranger reaches the API | JWT sign-in, role policies, rate limit on sign-in and password change, audit log | guarded by a test that lists all anonymous endpoints |
-| Rogue device registers | one-time or limited registration tokens (stored hashed), optional mTLS | reusable tokens are valid until used up or expired |
+| Rogue device registers | one-time or limited registration tokens (stored hashed), API keys that can only create one-time tokens, optional mTLS | reusable tokens are valid until used up or expired; a token holder can register new devices that join groups by their name |
+| Device takeover by host name | a registration takes over an existing device only after an operator allowed a reinstall; otherwise the new device waits for approval and gets nothing; agent-reported renames need an operator | |
+| Stolen or stale session | security stamp of local users checked on every request (deactivate, demote, delete, password change end sessions at once), per-account sign-in limit | LDAP/OIDC sessions last until the token expires |
+| Faked client address | `Proxy:TrustedProxies` required with forwarded headers | `Proxy:TrustAllProxies` opts out deliberately |
 | Agent impersonation | per-device secret, optional client certificate from the agent CA | see mTLS mode in [operations](operations.md) |
 | **Compromised server pushes malicious code** | none beyond access control of the server | **agent updates and packages are verified against a checksum that the server itself provides, not against a signature** (see risks in arc42, section 11) |
 | Malicious dependency | lock files, Dependabot, `npm audit`, NuGet vulnerability check, Trivy | transitive packages are not reviewed by hand |

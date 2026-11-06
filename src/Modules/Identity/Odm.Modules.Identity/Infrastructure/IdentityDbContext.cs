@@ -25,6 +25,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             b.Property(u => u.DisplayName).HasMaxLength(256).IsRequired();
             b.Property(u => u.PasswordHash).HasMaxLength(512).IsRequired();
             b.Property(u => u.Role).HasConversion<string>().HasMaxLength(32);
+            b.Property(u => u.SecurityStamp).HasMaxLength(32).IsRequired();
         });
 
         modelBuilder.Entity<ApiKey>(b =>
