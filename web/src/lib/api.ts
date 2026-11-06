@@ -83,6 +83,25 @@ export interface TokenDto {
   useCount: number
 }
 
+export interface ApiKeyDto {
+  id: string
+  name: string
+  role: string
+  createdBy: string
+  createdAt: string
+  expiresAt: string | null
+  lastUsedAt: string | null
+  expired: boolean
+}
+
+/** Only returned once, on creation. */
+export interface ApiKeyCreatedDto {
+  id: string
+  name: string
+  key: string
+  expiresAt: string | null
+}
+
 export interface TokenCreatedDto {
   id: string
   label: string
@@ -693,6 +712,10 @@ export const api = {
   deviceStats: (silentHours: number) => request<DeviceStatsDto>(`/devices/stats?silentHours=${silentHours}`),
   softwareStats: () => request<SoftwareStatsDto>('/software/stats'),
 
+  apiKeys: () => request<ApiKeyDto[]>('/api-keys'),
+  createApiKey: (name: string, validDays: number | null) =>
+    request<ApiKeyCreatedDto>('/api-keys', { method: 'POST', body: JSON.stringify({ name, validDays }) }),
+  deleteApiKey: (id: string) => request<void>(`/api-keys/${id}`, { method: 'DELETE' }),
   registrationTokens: () => request<TokenDto[]>('/agents/tokens'),
   createRegistrationToken: (label: string, validHours: number, maxUses: number) =>
     request<TokenCreatedDto>('/agents/tokens', { method: 'POST', body: JSON.stringify({ label, validHours, maxUses }) }),

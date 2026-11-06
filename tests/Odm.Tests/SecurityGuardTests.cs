@@ -46,6 +46,22 @@ public class SecurityGuardTests
     }
 
     [Fact]
+    public void Api_keys_are_accepted_by_the_enrollment_policy_only()
+    {
+        // The API key scheme is named in exactly one policy, and only token creation uses that policy.
+        Assert.Equal(
+            new Dictionary<string, int> { ["src/Modules/Identity/Odm.Modules.Identity/IdentityModule.cs"] = 1 }.OrderBy(x => x.Key),
+            Count("src", @"AddAuthenticationSchemes\([^)]*ApiKeyAuthenticationHandler\.SchemeName").OrderBy(x => x.Key));
+        Assert.Equal(
+            new Dictionary<string, int>
+            {
+                ["src/Modules/Identity/Odm.Modules.Identity/IdentityModule.cs"] = 1, // definition
+                ["src/Modules/Agents/Odm.Modules.Agents/Endpoints/AdminEndpoints.cs"] = 1 // POST /agents/tokens
+            }.OrderBy(x => x.Key),
+            Count("src", @"Policies\.Enrollment\b").OrderBy(x => x.Key));
+    }
+
+    [Fact]
     public void Server_modules_do_not_start_processes()
     {
         Assert.Empty(Count("src/Modules", @"Process\.Start|new\s+ProcessStartInfo|ProcessRunner"));
