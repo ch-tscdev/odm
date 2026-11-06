@@ -139,8 +139,9 @@ certificate to ODM in the `X-Client-Cert` header, see [agent.md](agent.md#mtls-b
 
 - Agents refuse plain HTTP by default. Terminate TLS either in front of ODM (reverse proxy) or in ODM itself
   (`Kestrel__Endpoints__Https__Url` plus certificate configuration).
-- **Behind a reverse proxy:** set `Proxy:ForwardedHeaders=true` and `Proxy:TrustedProxies` to the proxy addresses (e.g.
-  `Proxy__TrustedProxies__0=172.18.0.0/16` for a proxy in a Docker network), otherwise rate limits apply per proxy instead of
+- **Behind a reverse proxy:** set `Proxy:ForwardedHeaders=true` and `Proxy:TrustedProxies` to the proxy addresses (Docker
+  Compose: `ODM_PROXY_FORWARDED_HEADERS=true` and `ODM_TRUSTED_PROXY=<address or range>` in `.env`, e.g. `172.18.0.0/16` for a
+  proxy in a Docker network), otherwise rate limits apply per proxy instead of
   per client; set `Agents:PublicBaseUrl`; raise the proxy upload limit to match `Software:MaxPackageMegabytes`. Once all
   agents use the proxy, publish port 8080 only locally (`ODM_BIND=127.0.0.1` in `.env` when the proxy runs on the same host)
   or restrict it in the firewall, so nobody can bypass the proxy.

@@ -63,6 +63,10 @@ services:
       Agents__Update__TargetVersion: ${ODM_AGENT_UPDATE_VERSION:-}
       Agents__Update__RolloutPercent: ${ODM_AGENT_UPDATE_PERCENT:-100}
       Agents__PublicBaseUrl: ${ODM_PUBLIC_URL:-}
+      # Behind your own reverse proxy (nginx proxy manager, Traefik ...): see .env.example and docs/operations.md
+      Proxy__ForwardedHeaders: ${ODM_PROXY_FORWARDED_HEADERS:-false}
+      Proxy__TrustedProxies__0: ${ODM_TRUSTED_PROXY:-}
+      Proxy__TrustAllProxies: ${ODM_PROXY_TRUST_ALL:-false}
       # Agents: client certificates (mTLS): Off | Optional | Required; the CA lives in the odm-pki volume. Requires HTTPS at the server (see docs/agent.md).
       Agents__Mtls__Mode: ${ODM_MTLS_MODE:-Off}
       Agents__Mtls__CaDirectory: /pki
