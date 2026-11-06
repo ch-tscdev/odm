@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Odm.Modules.OsUpdates.Domain;
 using Odm.Modules.OsUpdates.Infrastructure;
+using Odm.SharedKernel.Text;
 using Odm.SharedKernel.Contracts;
 
 namespace Odm.Modules.OsUpdates.Application;
@@ -98,7 +99,8 @@ public sealed class UpdateSchedulingService(
         var candidates = policyOf.Keys.Union(direct.Keys).Union(viaGroup.Keys).ToList();
         foreach (var deviceId in candidates)
         {
-            var name = names.GetValueOrDefault(deviceId) ?? deviceId.ToString();
+            // Device names come from the agent: sanitized against log forging.
+            var name = LogSanitizer.Clean(names.GetValueOrDefault(deviceId) ?? deviceId.ToString());
             var hasPolicy = policyOf.TryGetValue(deviceId, out var assigned);
             var effective = direct.TryGetValue(deviceId, out var own) ? own
                 : viaGroup.TryGetValue(deviceId, out var inherited) ? inherited
