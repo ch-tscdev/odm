@@ -11,7 +11,7 @@ namespace Odm.Modules.Identity.Infrastructure;
 
 /// <summary>
 /// Authenticates API keys sent in the <c>X-Api-Key</c> header. The scheme is only used by policies that name it
-/// (<see cref="Odm.SharedKernel.Policies.Enrollment"/>); every other endpoint ignores API keys.
+/// (the Enrollment policy); every other endpoint ignores API keys.
 /// </summary>
 public sealed class ApiKeyAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
