@@ -25,6 +25,7 @@ public sealed class OsUpdatesModule : IModule
         services.AddScoped<IAlertSource, UpdateRunAlertSource>();
         services.AddScoped<IJobResultListener, UpdateRunListener>();
         services.AddScoped<IOsUpdateHistory, OsUpdateHistoryStore>();
+        services.AddScoped<IDeviceRemovalHandler, OsUpdatesDeviceRemoval>();
         services.AddHostedService<UpdateScheduler>();
         services.AddHostedService<UpdateRunRetentionService>();
     }

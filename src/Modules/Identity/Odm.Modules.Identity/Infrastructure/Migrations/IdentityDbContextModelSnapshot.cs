@@ -48,6 +48,9 @@ namespace Odm.Modules.Identity.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<int>("Permissions")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SecretHash")
                         .IsRequired()
                         .HasMaxLength(64)

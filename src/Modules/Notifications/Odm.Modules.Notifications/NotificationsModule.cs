@@ -7,6 +7,7 @@ using Odm.Modules.Notifications.Application;
 using Odm.Modules.Notifications.Endpoints;
 using Odm.Modules.Notifications.Infrastructure;
 using Odm.SharedKernel;
+using Odm.SharedKernel.Contracts;
 using Odm.SharedKernel.Persistence;
 
 namespace Odm.Modules.Notifications;
@@ -32,6 +33,7 @@ public sealed class NotificationsModule : IModule
         services.AddScoped<IAlertChannel, EmailChannel>();
         services.AddScoped<IAlertChannel, WebhookChannel>();
         services.AddScoped<NotificationService>();
+        services.AddScoped<IDeviceRemovalHandler, NotificationsDeviceRemoval>();
         services.AddHostedService<NotificationWorker>();
     }
 

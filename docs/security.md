@@ -10,6 +10,7 @@ which gaps are known.
 |---|---|---|
 | Stranger reaches the API | JWT sign-in, role policies, rate limit on sign-in and password change, audit log | guarded by a test that lists all anonymous endpoints |
 | Rogue device registers | one-time or limited registration tokens (stored hashed), API keys that can only create one-time tokens, optional mTLS | reusable tokens are valid until used up or expired; a token holder can register new devices that join groups by their name |
+| Device deleted by automation | API keys need the explicit permission "Delete devices"; deletion is audited | a leaked key with that permission can delete devices (not take them over) |
 | Device takeover by host name | a registration takes over an existing device only after an operator allowed a reinstall; otherwise the new device waits for approval and gets nothing; agent-reported renames need an operator | |
 | Stolen or stale session | security stamp of local users checked on every request (deactivate, demote, delete, password change end sessions at once), per-account sign-in limit | LDAP/OIDC sessions last until the token expires |
 | Faked client address | `Proxy:TrustedProxies` required with forwarded headers | `Proxy:TrustAllProxies` opts out deliberately |

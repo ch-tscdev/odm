@@ -23,6 +23,23 @@ public class ApiKeyTests
     }
 
     [Fact]
+    public void Roles_follow_the_permissions()
+    {
+        Assert.Equal(new[] { ApiKey.EnrollmentRole }, ApiKey.Issue("a", "admin", Now, null).Key.Roles());
+        Assert.Equal(new[] { ApiKey.DeviceDeletionRole },
+            ApiKey.Issue("b", "admin", Now, null, ApiKeyPermissions.DeviceDeletion).Key.Roles());
+        Assert.Equal(new[] { ApiKey.EnrollmentRole, ApiKey.DeviceDeletionRole },
+            ApiKey.Issue("c", "admin", Now, null, ApiKeyPermissions.All).Key.Roles());
+    }
+
+    [Fact]
+    public void Key_without_known_permission_cannot_be_issued()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => ApiKey.Issue("a", "admin", Now, null, ApiKeyPermissions.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ApiKey.Issue("a", "admin", Now, null, (ApiKeyPermissions)8));
+    }
+
+    [Fact]
     public void Wrong_secret_does_not_match()
     {
         var (key, plain) = ApiKey.Issue("ansible", "admin", Now, null);
@@ -70,7 +87,8 @@ public class EnrollmentLimitsTests
     [Fact]
     public void Limits_apply_to_api_keys_but_not_to_operators()
     {
-        Assert.True(EnrollmentLimits.Applies(WithRole(ApiKey.Role)));
+        Assert.True(EnrollmentLimits.Applies(WithRole(ApiKey.EnrollmentRole)));
+        Assert.True(EnrollmentLimits.Applies(WithRole(ApiKey.DeviceDeletionRole)));
         Assert.False(EnrollmentLimits.Applies(WithRole("Operator")));
         Assert.False(EnrollmentLimits.Applies(WithRole("Admin")));
     }

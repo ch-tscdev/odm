@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { api, ApiError, type DeviceDto, type DeviceGroupRefDto, type DeviceInventoryDto, type InstallationDto, type InstalledProgramDto } from './api'
   import { auth } from './auth.svelte'
+  import { router } from './router.svelte'
   import DataTable, { type Column } from './DataTable.svelte'
   import { i18n, type MessageKey } from './i18n.svelte'
   import DeviceProfiles from './DeviceProfiles.svelte'
@@ -48,6 +49,17 @@
     try {
       device = await action()
       groups = await api.deviceGroups(id)
+    } catch (e) {
+      deviceError = (e instanceof ApiError && e.detail) || i18n.t('common.saveFailed')
+    }
+  }
+
+  async function removeDevice() {
+    if (!device || !confirm(i18n.t('dev.delete.confirm', { name: device.name }))) return
+    deviceError = null
+    try {
+      await api.deleteDevice(id)
+      router.navigate('/devices')
     } catch (e) {
       deviceError = (e instanceof ApiError && e.detail) || i18n.t('common.saveFailed')
     }
@@ -220,6 +232,10 @@
           <span class="muted">{i18n.t('dev.reinstall.hint')}</span>
         {/if}
       </div>
+      <div class="cert">
+        <button class="ghost danger" onclick={removeDevice}>{i18n.t('dev.delete.button')}</button>
+        <span class="muted">{i18n.t('dev.delete.hint')}</span>
+      </div>
     {/if}
 
     {#if auth.isAdmin}
@@ -317,6 +333,9 @@
 <MessageDialog bind:this={messageDialog} />
 
 <style>
+  .danger {
+    color: var(--danger);
+  }
   .notice {
     display: grid;
     gap: 0.4rem;

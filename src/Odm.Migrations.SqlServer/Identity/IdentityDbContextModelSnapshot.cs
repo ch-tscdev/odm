@@ -48,6 +48,9 @@ namespace Odm.Migrations.SqlServer.Identity
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<int>("Permissions")
+                        .HasColumnType("int");
+
                     b.Property<string>("SecretHash")
                         .IsRequired()
                         .HasMaxLength(64)

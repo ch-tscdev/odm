@@ -8,6 +8,8 @@ const de: [string, string][] = [
   ["Each stage needs a subgroup.", "Jede Stufe braucht eine Untergruppe."],
   ["Each subgroup may appear only once.", "Jede Untergruppe darf nur einmal vorkommen."],
   ["Unknown package kind.", "Unbekannte Paketart."],
+  ["Unknown permission.", "Unbekannte Berechtigung."],
+  ["Several devices have this name; delete by ID.", "Mehrere Geräte haben diesen Namen; lösche per ID."],
   ["Another device already has this name.", "Ein anderes Gerät hat bereits diesen Namen."],
   ["Name is required (at most {Max} characters).", "Name ist erforderlich (höchstens {Max} Zeichen)."],
   ["Validity must be between 1 and 3650 days (empty = no expiry).", "Die Gültigkeit muss zwischen 1 und 3650 Tagen liegen (leer = kein Ablauf)."],

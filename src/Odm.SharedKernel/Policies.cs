@@ -8,9 +8,15 @@ public static class Policies
 
     /// <summary>
     /// Create registration tokens: operators and admins (signed in), or an API key with the role "Enrollment".
-    /// The only policy that accepts API keys.
+    /// One of the two policies that accept API keys.
     /// </summary>
     public const string Enrollment = "Enrollment";
+
+    /// <summary>
+    /// Delete devices: operators and admins (signed in), or an API key with the role "DeviceDeletion" (e.g. when automation
+    /// removes a VM). Besides <see cref="Enrollment"/> the only policy that accepts API keys.
+    /// </summary>
+    public const string DeviceDeletion = "DeviceDeletion";
 
     /// <summary>Authenticated agent (own scheme, not for users).</summary>
     public const string Agent = "Agent";

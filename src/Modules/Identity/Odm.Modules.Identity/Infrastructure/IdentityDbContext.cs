@@ -36,6 +36,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             b.HasIndex(k => k.Name).IsUnique();
             b.Property(k => k.SecretHash).HasMaxLength(64).IsRequired();
             b.Property(k => k.CreatedBy).HasMaxLength(128).IsRequired();
+            b.Property(k => k.Permissions).HasConversion<int>();
         });
     }
 }

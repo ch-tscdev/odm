@@ -118,7 +118,10 @@ public sealed class IdentityModule : IModule
             .AddPolicy(Policies.Operator, p => p.RequireRole(nameof(UserRole.Operator), nameof(UserRole.Admin)))
             .AddPolicy(Policies.Enrollment, p => p
                 .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, ApiKeyAuthenticationHandler.SchemeName)
-                .RequireRole(ApiKey.Role, nameof(UserRole.Operator), nameof(UserRole.Admin)));
+                .RequireRole(ApiKey.EnrollmentRole, nameof(UserRole.Operator), nameof(UserRole.Admin)))
+            .AddPolicy(Policies.DeviceDeletion, p => p
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, ApiKeyAuthenticationHandler.SchemeName)
+                .RequireRole(ApiKey.DeviceDeletionRole, nameof(UserRole.Operator), nameof(UserRole.Admin)));
 
         services.AddRateLimiter(limiter =>
         {
