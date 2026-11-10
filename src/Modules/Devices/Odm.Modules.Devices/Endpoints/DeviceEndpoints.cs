@@ -14,6 +14,30 @@ internal static class DeviceEndpoints
     {
         var group = endpoints.MapGroup("/devices").WithTags("Devices").RequireAuthorization();
 
+        // Deleting is also open to API keys with the permission "DeviceDeletion" (automation, e.g. when a VM is removed),
+        // so these endpoints are not in the group above (its policy only accepts signed-in users).
+        var removal = endpoints.MapGroup("/devices").WithTags("Devices");
+
+        removal.MapDelete("/{id:guid}", async (Guid id, DeviceRemoval devices, CancellationToken ct) =>
+                await devices.RemoveAsync(id, ct) ? Results.NoContent() : Results.NotFound())
+            .RequireAuthorization(Policies.DeviceDeletion);
+
+        // Automation usually knows the VM's host name, not ODM's ID. A name that several devices share is refused.
+        removal.MapDelete("/by-name/{name}", async (string name, DevicesDbContext db, DeviceRemoval devices, CancellationToken ct) =>
+            {
+                var lowered = name.Trim().ToLower();
+                var ids = await db.Devices.Where(d => d.Name.ToLower() == lowered).Select(d => d.Id).Take(2).ToListAsync(ct);
+                if (ids.Count > 1)
+                {
+                    return Results.ValidationProblem(
+                        new Dictionary<string, string[]> { ["name"] = ["Several devices have this name; delete by ID."] },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                return ids.Count == 1 && await devices.RemoveAsync(ids[0], ct) ? Results.NoContent() : Results.NotFound();
+            })
+            .RequireAuthorization(Policies.DeviceDeletion);
+
         group.MapGet("/", async (
             DevicesDbContext db, int? skip, int? take, string? search, Guid? groupId, CancellationToken ct) =>
         {

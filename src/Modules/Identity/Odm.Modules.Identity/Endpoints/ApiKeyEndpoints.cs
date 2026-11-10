@@ -8,11 +8,13 @@ using Odm.SharedKernel;
 
 namespace Odm.Modules.Identity.Endpoints;
 
+/// <param name="Permissions">Roles of the key: <c>Enrollment</c>, <c>DeviceDeletion</c>.</param>
 public sealed record ApiKeyDto(
-    Guid Id, string Name, string Role, string CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset? ExpiresAt,
-    DateTimeOffset? LastUsedAt, bool Expired);
+    Guid Id, string Name, IReadOnlyList<string> Permissions, string CreatedBy, DateTimeOffset CreatedAt,
+    DateTimeOffset? ExpiresAt, DateTimeOffset? LastUsedAt, bool Expired);
 
-public sealed record CreateApiKeyRequest(string? Name, int? ValidDays);
+/// <param name="Permissions">Empty = <c>Enrollment</c> (as before).</param>
+public sealed record CreateApiKeyRequest(string? Name, int? ValidDays, List<string>? Permissions = null);
 
 /// <summary>One-time response on creation: the only one that contains the plaintext key.</summary>
 public sealed record ApiKeyCreatedDto(Guid Id, string Name, string Key, DateTimeOffset? ExpiresAt);
@@ -44,6 +46,18 @@ public static class ApiKeyEndpoints
                 return Invalid("validDays", "Validity must be between 1 and 3650 days (empty = no expiry).");
             }
 
+            var permissions = ApiKeyPermissions.None;
+            foreach (var value in request.Permissions is { Count: > 0 } list ? list : [ApiKey.EnrollmentRole])
+            {
+                if (!Enum.TryParse<ApiKeyPermissions>(value, ignoreCase: true, out var permission) ||
+                    permission is ApiKeyPermissions.None or ApiKeyPermissions.All)
+                {
+                    return Invalid("permissions", "Unknown permission.");
+                }
+
+                permissions |= permission;
+            }
+
             if (await db.ApiKeys.AnyAsync(k => k.Name == name, ct))
             {
                 return Invalid("name", "An API key with this name already exists.", StatusCodes.Status409Conflict);
@@ -51,7 +65,7 @@ public static class ApiKeyEndpoints
 
             var createdBy = http.User.FindFirst("name")?.Value ?? "";
             var validFor = request.ValidDays is { } days ? TimeSpan.FromDays(days) : (TimeSpan?)null;
-            var (key, plain) = ApiKey.Issue(name, createdBy, DateTimeOffset.UtcNow, validFor);
+            var (key, plain) = ApiKey.Issue(name, createdBy, DateTimeOffset.UtcNow, validFor, permissions);
             db.ApiKeys.Add(key);
             await db.SaveChangesAsync(ct);
 
@@ -66,7 +80,7 @@ public static class ApiKeyEndpoints
     }
 
     private static ApiKeyDto ToDto(ApiKey k, DateTimeOffset now) =>
-        new(k.Id, k.Name, ApiKey.Role, k.CreatedBy, k.CreatedAt, k.ExpiresAt, k.LastUsedAt, k.IsExpired(now));
+        new(k.Id, k.Name, k.Roles().ToList(), k.CreatedBy, k.CreatedAt, k.ExpiresAt, k.LastUsedAt, k.IsExpired(now));
 
     private static IResult Invalid(string field, string message, int status = StatusCodes.Status400BadRequest) =>
         Results.ValidationProblem(new Dictionary<string, string[]> { [field] = [message] }, statusCode: status);

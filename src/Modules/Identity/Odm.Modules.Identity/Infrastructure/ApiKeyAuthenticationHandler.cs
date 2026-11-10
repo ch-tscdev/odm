@@ -11,7 +11,7 @@ namespace Odm.Modules.Identity.Infrastructure;
 
 /// <summary>
 /// Authenticates API keys sent in the <c>X-Api-Key</c> header. The scheme is only used by policies that name it
-/// (the Enrollment policy); every other endpoint ignores API keys.
+/// (the Enrollment and DeviceDeletion policies); every other endpoint ignores API keys.
 /// </summary>
 public sealed class ApiKeyAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
@@ -45,13 +45,9 @@ public sealed class ApiKeyAuthenticationHandler(
             await db.SaveChangesAsync(Context.RequestAborted);
         }
 
-        var identity = new ClaimsIdentity(
-            [
-                new Claim("sub", key.Id.ToString()),
-                new Claim("name", $"api-key:{key.Name}"),
-                new Claim("role", ApiKey.Role)
-            ],
-            SchemeName, "name", "role");
+        var claims = new List<Claim> { new("sub", key.Id.ToString()), new("name", $"api-key:{key.Name}") };
+        claims.AddRange(key.Roles().Select(role => new Claim("role", role)));
+        var identity = new ClaimsIdentity(claims, SchemeName, "name", "role");
         return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName));
     }
 }

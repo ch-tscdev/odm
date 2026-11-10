@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Odm.Modules.Devices.Application;
 using Odm.Modules.Devices.Domain;
 using Odm.Modules.Devices.Endpoints;
 using Odm.Modules.Devices.Infrastructure;
@@ -23,6 +24,7 @@ public sealed class DevicesModule : IModule
         services.AddScoped<IDeviceRegistry, DeviceRegistry>();
         services.AddScoped<IDeviceDirectory, DeviceDirectory>();
         services.AddScoped<IDeviceInventory, DeviceInventoryStore>();
+        services.AddScoped<DeviceRemoval>();
         services.AddScoped<IAlertSource, DeviceAlertSource>();
         services.AddDbContext<DevicesDbContext>((sp, o) =>
             o.UseOdmDatabase(sp.GetRequiredService<IOptions<DatabaseOptions>>().Value, DevicesDbContext.Schema));

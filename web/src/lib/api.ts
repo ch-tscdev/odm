@@ -89,10 +89,12 @@ export interface TokenDto {
   useCount: number
 }
 
+export type ApiKeyPermission = 'Enrollment' | 'DeviceDeletion'
+
 export interface ApiKeyDto {
   id: string
   name: string
-  role: string
+  permissions: ApiKeyPermission[]
   createdBy: string
   createdAt: string
   expiresAt: string | null
@@ -713,6 +715,8 @@ export const api = {
     query.set('take', String(options.take ?? 100))
     return request<PagedResult<DeviceDto>>(`/devices?${query}`)
   },
+  /** Deletes the device and everything stored about it; its agent loses access. */
+  deleteDevice: (id: string) => request<void>(`/devices/${id}`, { method: 'DELETE' }),
   setReinstall: (id: string, allowed: boolean) =>
     request<DeviceDto>(`/devices/${id}/reinstall`, { method: 'PUT', body: JSON.stringify({ allowed }) }),
   approveDevice: (id: string) => request<DeviceDto>(`/devices/${id}/approve`, { method: 'POST' }),
@@ -724,8 +728,8 @@ export const api = {
   softwareStats: () => request<SoftwareStatsDto>('/software/stats'),
 
   apiKeys: () => request<ApiKeyDto[]>('/api-keys'),
-  createApiKey: (name: string, validDays: number | null) =>
-    request<ApiKeyCreatedDto>('/api-keys', { method: 'POST', body: JSON.stringify({ name, validDays }) }),
+  createApiKey: (name: string, validDays: number | null, permissions: ApiKeyPermission[]) =>
+    request<ApiKeyCreatedDto>('/api-keys', { method: 'POST', body: JSON.stringify({ name, validDays, permissions }) }),
   deleteApiKey: (id: string) => request<void>(`/api-keys/${id}`, { method: 'DELETE' }),
   registrationTokens: () => request<TokenDto[]>('/agents/tokens'),
   createRegistrationToken: (label: string, validHours: number, maxUses: number) =>

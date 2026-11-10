@@ -36,8 +36,8 @@ The same install command works for every VM.
 ### Automated provisioning with an API key (one-time token per host)
 
 Instead of a reusable token, automation can fetch a fresh one-time token for every host. An admin creates an **API key** under
-*Enrollment → API keys for automation*. A key has only the role `Enrollment`: it can call `POST /api/agents/tokens` and nothing
-else, and only for one-time tokens valid for at most 24 hours. The plaintext key (`odmk_…`) is shown once; ODM stores only its
+*Enrollment → API keys for automation* and chooses its permissions: **Register agents** (`POST /api/agents/tokens`, only
+one-time tokens valid for at most 24 hours) and/or **Delete devices** (see below). A key can do nothing else. The plaintext key (`odmk_…`) is shown once; ODM stores only its
 SHA-256 hash. Name, creator, expiry and last use are listed; deleting the key revokes it immediately.
 
 ```yaml
@@ -67,6 +67,34 @@ creates a new device that waits for approval (see *Reinstalling a device* below)
 
 Without HTTPS scripts and agent refuse to connect (testing only: `-AllowInsecureHttp` / `--allow-insecure-http`).
 Direct downloads with checksums: `GET /api/agent/packages`, `GET /api/agent/download/{platform}`.
+
+### Deleting devices
+
+*Delete device* on the device page (operators) removes the device with everything ODM stores about it: inventory, installation
+state, OS update runs and history, alert records and assignments made directly to it. Its agent loses access at once; group
+assignments are unaffected. The audit log keeps the deletion. If the machine keeps running, its agent gets 401 and can only
+register again with a new token (as a new device).
+
+Automation deletes devices with an API key that has the permission **Delete devices**, e.g. when a VM is removed:
+
+```sh
+curl -fsS -X DELETE -H "X-Api-Key: $ODM_API_KEY" https://odm.example.org/api/devices/by-name/vm-web01   # by host name
+curl -fsS -X DELETE -H "X-Api-Key: $ODM_API_KEY" https://odm.example.org/api/devices/<device-id>        # by ID
+```
+
+`204` = deleted, `404` = no such device (already gone), `409` = several devices have this name (delete by ID).
+
+```yaml
+# Ansible, e.g. in the playbook that destroys the VM
+- name: Remove the device from ODM
+  ansible.builtin.uri:
+    url: "{{ odm_url }}/api/devices/by-name/{{ inventory_hostname }}"
+    method: DELETE
+    headers: { X-Api-Key: "{{ odm_api_key }}" }
+    status_code: [204, 404]
+  delegate_to: localhost
+  no_log: true
+```
 
 ### Reinstalling a device, renamed machines
 

@@ -46,12 +46,14 @@ public class SecurityGuardTests
     }
 
     [Fact]
-    public void Api_keys_are_accepted_by_the_enrollment_policy_only()
+    public void Api_keys_are_accepted_by_their_two_policies_only()
     {
-        // The API key scheme is named in exactly one policy, and only token creation uses that policy.
+        // The API key scheme is named in exactly two policies (Enrollment, DeviceDeletion) ...
         Assert.Equal(
-            new Dictionary<string, int> { ["src/Modules/Identity/Odm.Modules.Identity/IdentityModule.cs"] = 1 }.OrderBy(x => x.Key),
+            new Dictionary<string, int> { ["src/Modules/Identity/Odm.Modules.Identity/IdentityModule.cs"] = 2 }.OrderBy(x => x.Key),
             Count("src", @"AddAuthenticationSchemes\([^)]*ApiKeyAuthenticationHandler\.SchemeName").OrderBy(x => x.Key));
+
+        // ... Enrollment is only used for creating registration tokens ...
         Assert.Equal(
             new Dictionary<string, int>
             {
@@ -59,6 +61,15 @@ public class SecurityGuardTests
                 ["src/Modules/Agents/Odm.Modules.Agents/Endpoints/AdminEndpoints.cs"] = 1 // POST /agents/tokens
             }.OrderBy(x => x.Key),
             Count("src", @"Policies\.Enrollment\b").OrderBy(x => x.Key));
+
+        // ... and DeviceDeletion only for deleting devices (by ID and by name).
+        Assert.Equal(
+            new Dictionary<string, int>
+            {
+                ["src/Modules/Identity/Odm.Modules.Identity/IdentityModule.cs"] = 1, // definition
+                ["src/Modules/Devices/Odm.Modules.Devices/Endpoints/DeviceEndpoints.cs"] = 2 // DELETE /devices/{id}, /devices/by-name/{name}
+            }.OrderBy(x => x.Key),
+            Count("src", @"Policies\.DeviceDeletion\b").OrderBy(x => x.Key));
     }
 
     [Fact]

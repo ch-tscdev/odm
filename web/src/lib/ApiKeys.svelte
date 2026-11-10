@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { api, ApiError, type ApiKeyCreatedDto, type ApiKeyDto } from './api'
+  import { api, ApiError, type ApiKeyCreatedDto, type ApiKeyDto, type ApiKeyPermission } from './api'
   import DataTable, { type Column } from './DataTable.svelte'
   import { i18n } from './i18n.svelte'
 
@@ -10,16 +10,25 @@
 
   let name = $state('')
   let validDays = $state<number | null>(365)
+  let canEnroll = $state(true)
+  let canDelete = $state(false)
+  let createdPermissions = $state<ApiKeyPermission[]>([])
   let busy = $state(false)
   let error = $state<string | null>(null)
   let created = $state<ApiKeyCreatedDto | null>(null)
   let copied = $state(false)
 
-  const example = $derived(
+  const keyText = $derived(created?.key ?? '<api-key>')
+  const enrollExample = $derived(
     `curl -sS -X POST ${location.origin}/api/agents/tokens \\\n` +
-      `  -H 'X-Api-Key: ${created?.key ?? '<api-key>'}' -H 'Content-Type: application/json' \\\n` +
+      `  -H 'X-Api-Key: ${keyText}' -H 'Content-Type: application/json' \\\n` +
       `  -d '{"label":"ansible <host>","validHours":1,"maxUses":1}'`,
   )
+  const deleteExample = $derived(
+    `curl -sS -X DELETE ${location.origin}/api/devices/by-name/<host> -H 'X-Api-Key: ${keyText}'`,
+  )
+  const permissionLabel = (p: ApiKeyPermission) =>
+    p === 'Enrollment' ? i18n.t('apikeys.permEnroll') : i18n.t('apikeys.permDelete')
 
   async function load() {
     try {
@@ -39,7 +48,12 @@
     error = null
     copied = false
     try {
-      created = await api.createApiKey(name.trim(), validDays || null)
+      const permissions: ApiKeyPermission[] = [
+        ...(canEnroll ? (['Enrollment'] as const) : []),
+        ...(canDelete ? (['DeviceDeletion'] as const) : []),
+      ]
+      created = await api.createApiKey(name.trim(), validDays || null, permissions)
+      createdPermissions = permissions
       name = ''
       await load()
     } catch (e) {
@@ -68,7 +82,7 @@
 
   const columns = $derived<Column<ApiKeyDto>[]>([
     { key: 'name', label: i18n.t('apikeys.name'), value: (k) => k.name, strong: true },
-    { key: 'role', label: i18n.t('apikeys.role'), value: (k) => k.role, muted: true },
+    { key: 'permissions', label: i18n.t('apikeys.permissions'), value: (k) => k.permissions.map(permissionLabel).join(', '), muted: true },
     { key: 'created', label: i18n.t('apikeys.created'), value: (k) => k.createdAt, cell: createdCell, filter: 'none' },
     { key: 'expires', label: i18n.t('apikeys.expires'), value: (k) => k.expiresAt, cell: expiresCell, filter: 'none' },
     { key: 'used', label: i18n.t('apikeys.lastUsed'), value: (k) => k.lastUsedAt, cell: usedCell, filter: 'none' },
@@ -111,7 +125,12 @@
         <span>{i18n.t('apikeys.validDays')}</span>
         <input type="number" min="1" max="3650" step="1" bind:value={validDays} style="width: 8rem" />
       </label>
-      <button class="primary" type="submit" disabled={busy}>{i18n.t('apikeys.create')}</button>
+      <button class="primary" type="submit" disabled={busy || (!canEnroll && !canDelete)}>{i18n.t('apikeys.create')}</button>
+    </div>
+    <div class="perms">
+      <span>{i18n.t('apikeys.permissions')}</span>
+      <label class="check"><input type="checkbox" bind:checked={canEnroll} /> {i18n.t('apikeys.permEnroll')}</label>
+      <label class="check"><input type="checkbox" bind:checked={canDelete} /> {i18n.t('apikeys.permDelete')}</label>
     </div>
     <p class="muted small">{i18n.t('apikeys.validHint')}</p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -125,8 +144,14 @@
         <button onclick={copy}>{copied ? i18n.t('enroll.copied') : i18n.t('enroll.copy')}</button>
         <span class="muted small">{i18n.t('enroll.once')}</span>
       </div>
-      <span class="muted small">{i18n.t('apikeys.usage')}</span>
-      <code class="token pre">{example}</code>
+      {#if createdPermissions.includes('Enrollment')}
+        <span class="muted small">{i18n.t('apikeys.usage')}</span>
+        <code class="token pre">{enrollExample}</code>
+      {/if}
+      {#if createdPermissions.includes('DeviceDeletion')}
+        <span class="muted small">{i18n.t('apikeys.usageDelete')}</span>
+        <code class="token pre">{deleteExample}</code>
+      {/if}
     </div>
   {/if}
 
@@ -172,6 +197,25 @@
     gap: 0.35rem;
     font-size: 0.85rem;
     color: var(--muted);
+  }
+  .perms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.2rem;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text);
+  }
+  .check input {
+    min-height: 0;
+    width: auto;
+    margin: 0;
   }
   .small {
     font-size: 0.85rem;
