@@ -110,6 +110,7 @@ Wants=network-online.target
 
 [Service]
 Type=notify
+WorkingDirectory=/opt/odm-agent
 ExecStart=/opt/odm-agent/odm-agent
 Restart=always
 RestartSec=10

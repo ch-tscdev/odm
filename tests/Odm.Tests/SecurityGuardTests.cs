@@ -73,6 +73,17 @@ public class SecurityGuardTests
     }
 
     [Fact]
+    public void Agent_does_not_watch_files_for_configuration_changes()
+    {
+        // Reload on change watches a whole directory tree; on Linux every directory costs an inotify watch.
+        Assert.Equal(
+            new Dictionary<string, int> { ["src/Agent/Odm.Agent/Program.cs"] = 1 },
+            Count("src/Agent", @"hostBuilder:reloadConfigOnChange\W+=\s*\W+false"));
+        Assert.Empty(Count("src/Agent", @"reloadOnChange:\s*true"));
+        Assert.Empty(Count("src/Agent", @"\bFileSystemWatcher\b"));
+    }
+
+    [Fact]
     public void Server_modules_do_not_start_processes()
     {
         Assert.Empty(Count("src/Modules", @"Process\.Start|new\s+ProcessStartInfo|ProcessRunner"));

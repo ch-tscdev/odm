@@ -3,7 +3,18 @@ using Odm.Agent;
 using Odm.Agent.Jobs;
 using Odm.Agent.Os;
 
-var builder = Host.CreateApplicationBuilder(args);
+// Content root = program directory, not the working directory: under systemd that is "/", so appsettings.json next to the
+// program was not found. No reload on change: the default watches the content root with all subdirectories, which on
+// Linux costs one inotify watch per directory (from "/" that is the whole file system). The agent reads its settings at
+// start; the install script restarts it after a change.
+var settings = new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+    Configuration = new ConfigurationManager()
+};
+settings.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["hostBuilder:reloadConfigOnChange"] = "false" });
+var builder = Host.CreateApplicationBuilder(settings);
 
 // Configuration written by the install script (ServerUrl, one-time token) in the protected state directory.
 // It takes precedence over appsettings.json and environment variables; if it is missing, the usual configuration applies.
