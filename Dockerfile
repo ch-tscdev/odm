@@ -19,7 +19,7 @@ WORKDIR /src
 COPY . .
 RUN mkdir -p /agent-packages && if [ -n "$AGENT_RIDS" ]; then scripts/publish-agent.sh /agent-packages $AGENT_RIDS; fi
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 WORKDIR /app
 # libldap: required for the optional sign-in against LDAP / Active Directory (System.DirectoryServices.Protocols)
 RUN apt-get update \
