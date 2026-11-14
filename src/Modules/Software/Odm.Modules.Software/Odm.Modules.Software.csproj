@@ -6,7 +6,7 @@
     <ProjectReference Include="..\..\..\Odm.SharedKernel\Odm.SharedKernel.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="4.0.*" />
+    <PackageReference Include="AWSSDK.S3" Version="4.1.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
