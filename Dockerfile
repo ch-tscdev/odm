@@ -5,14 +5,14 @@ RUN npm ci
 COPY web/ ./
 RUN npm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 COPY . .
 RUN dotnet publish src/Odm.Host/Odm.Host.csproj -c Release -o /app
 
 # Self-contained agent packages that the server offers for download and for the install scripts.
 # Skip (faster build): --build-arg AGENT_RIDS=""
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS agent
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS agent
 ARG AGENT_RIDS="win-x64 win-arm64 linux-x64 linux-arm64"
 RUN apt-get update && apt-get install -y --no-install-recommends zip && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
