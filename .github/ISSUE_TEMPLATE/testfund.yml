@@ -1,0 +1,92 @@
+name: Testfund (Deutsch)
+description: Einen Fehler aus einem Test melden.
+title: "[Test ?] "
+labels: ["bug", "testfund"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deinen Fund!
+        **Wichtig:** Dieses Repository ist öffentlich. Jeder im Internet kann das lesen.
+        Schreibe **keine** Passwörter, Tokens, API-Keys, IP-Adressen oder Namen von echten Servern hinein.
+        Schreibe zum Beispiel «VM-WIN-01» statt der echten Adresse.
+  - type: input
+    id: testfall
+    attributes:
+      label: Testfall
+      description: Die Nummer des Testfalls.
+      placeholder: B6
+    validations:
+      required: true
+  - type: textarea
+    id: was
+    attributes:
+      label: Was ist falsch?
+      description: Ein oder zwei kurze Sätze.
+      placeholder: Die Fehlermeldung ist nur auf Englisch.
+    validations:
+      required: true
+  - type: textarea
+    id: schritte
+    attributes:
+      label: Was hast du gemacht?
+      description: Ein Schritt pro Zeile. So kann jemand anders den Fehler nachmachen.
+      placeholder: |
+        1. Paket angelegt: Winget, 7zip.7zipp
+        2. Dem Gerät VM-WIN-01 zugewiesen
+        3. 10 Minuten gewartet
+    validations:
+      required: true
+  - type: textarea
+    id: erwartet
+    attributes:
+      label: Was sollte passieren?
+      description: Was laut Testfall passieren soll.
+    validations:
+      required: true
+  - type: textarea
+    id: passiert
+    attributes:
+      label: Was ist passiert?
+      description: Schreibe Fehlermeldungen genau ab. Screenshots kannst du hier hineinziehen.
+    validations:
+      required: true
+  - type: dropdown
+    id: schwere
+    attributes:
+      label: Wie schlimm ist es?
+      options:
+        - "Sehr schlimm: kaputt oder unsicher"
+        - "Schlimm: etwas Wichtiges geht nicht"
+        - "Mittel: geht nur mit Umweg oder Anzeige falsch"
+        - "Klein: Tippfehler, Farbe, Übersetzung"
+        - "Idee: kein Fehler, aber es könnte besser sein"
+    validations:
+      required: true
+  - type: dropdown
+    id: wieder
+    attributes:
+      label: Passiert es jedes Mal?
+      options:
+        - "Ja, jedes Mal"
+        - "Manchmal"
+        - "Nur einmal"
+        - "Weiss nicht"
+  - type: input
+    id: geraet
+    attributes:
+      label: Gerät
+      description: Name in ODM und Betriebssystem. Keine IP-Adresse.
+      placeholder: VM-WIN-01, Windows 11
+  - type: input
+    id: version
+    attributes:
+      label: ODM-Version
+      description: Server-Version (oben in der Leiste, für Admins) und Agent-Version (auf der Geräteseite).
+      placeholder: Server 0.14.0, Agent 0.8.10
+  - type: textarea
+    id: log
+    attributes:
+      label: Ausschnitt aus dem Log (freiwillig)
+      description: Nur die wichtigen Zeilen. Vorher Passwörter, Tokens und Adressen entfernen.
+      render: text
