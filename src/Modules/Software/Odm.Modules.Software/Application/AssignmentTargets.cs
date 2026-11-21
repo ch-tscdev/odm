@@ -21,24 +21,20 @@ public static class AssignmentTargets
             return (kind, "", "target", "Target is required.");
         }
 
-        if (kind != TargetKind.User)
+        if (!Guid.TryParse(target, out var targetId))
         {
-            if (!Guid.TryParse(target, out var targetId))
-            {
-                return (kind, "", "target", "Invalid ID.");
-            }
-
-            var exists = kind == TargetKind.Device
-                ? await directory.GetAsync(targetId, ct) is not null
-                : await directory.GroupExistsAsync(targetId, ct);
-            if (!exists)
-            {
-                return (kind, "", "target", "Target not found.");
-            }
-
-            target = targetId.ToString("D");
+            return (kind, "", "target", "Invalid ID.");
         }
 
+        var exists = kind == TargetKind.Device
+            ? await directory.GetAsync(targetId, ct) is not null
+            : await directory.GroupExistsAsync(targetId, ct);
+        if (!exists)
+        {
+            return (kind, "", "target", "Target not found.");
+        }
+
+        target = targetId.ToString("D");
         return (kind, target, null, null);
     }
 

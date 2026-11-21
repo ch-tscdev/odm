@@ -146,7 +146,6 @@ internal static class ProfileEndpoints
                     TargetKind.Device => Guid.TryParse(a.Target, out var id) && id == deviceId,
                     TargetKind.Group => Guid.TryParse(a.Target, out var groupId) &&
                                         (await directory.ResolveGroupAsync(groupId, ct)).Any(d => d.Id == deviceId),
-                    TargetKind.User => (await directory.ResolveUserAsync(a.Target, ct)).Any(d => d.Id == deviceId),
                     _ => false
                 };
                 if (applies)
@@ -185,7 +184,6 @@ internal static class ProfileEndpoints
                     a.ProfileId, profiles[a.ProfileId].Name, a.TargetKind.ToString(),
                     a.TargetKind switch
                     {
-                        TargetKind.User => a.Target,
                         TargetKind.Group when Guid.TryParse(a.Target, out var g) => groupNames.GetValueOrDefault(g),
                         _ => null
                     },

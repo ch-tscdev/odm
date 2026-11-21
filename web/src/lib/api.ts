@@ -179,7 +179,7 @@ export interface PackageDetailDto {
   dependsOn: { id: string; name: string }[]
 }
 
-export type TargetKind = 'Device' | 'User' | 'Group'
+export type TargetKind = 'Device' | 'Group'
 export type VersionPolicy = 'Latest' | 'Pinned'
 
 export type RolloutMode = 'Percent' | 'Groups'
@@ -343,7 +343,7 @@ export interface DeviceProfileItemDto {
 export interface DeviceProfileDto {
   profileId: string
   profileName: string
-  source: 'Device' | 'User' | 'Group'
+  source: 'Device' | 'Group'
   sourceName: string | null
   items: DeviceProfileItemDto[]
 }

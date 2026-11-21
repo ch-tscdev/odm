@@ -175,7 +175,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     T[Timer every ReconcileSeconds<br/>or change trigger] --> L[load assignments, profile assignments, rollout plans]
-    L --> D[resolve targets: device, user, group<br/>apply rollout stages and precedence]
+    L --> D[resolve targets: device, group<br/>apply rollout stages and precedence]
     D --> E[evaluate installations<br/>retry, timeout, version change, uninstall]
     E --> Q[enqueue agent jobs for pending installations]
     Q --> R[agent result → installation state]
@@ -243,7 +243,7 @@ flowchart LR
 | ADR-15 | Packages are stored in S3-compatible storage; agents download through the server, which checks for a matching job | no S3 credentials or presigned URLs on devices; server streams data | accepted |
 | ADR-16 | Declarative desired state with a periodic reconciler (plus change trigger) | handles new group members, new versions and refresh of auto-updating packages uniformly; eventual consistency within the interval | accepted |
 | ADR-17 | One installation record per (device, package) with bounded retries (3 attempts, 15 minutes apart) | simple state machine, easy to report; no full history | accepted |
-| ADR-18 | Precedence of multiple sources: device before user before group; single assignment before profile | predictable result without priorities to maintain | accepted |
+| ADR-18 | Precedence of multiple sources: device before group; single assignment before profile | predictable result without priorities to maintain | accepted |
 | ADR-19 | Staged rollouts via stable hash percentages or subgroups; only for new installations | selection only grows; devices already installed keep updating | accepted |
 | ADR-20 | Secrets encrypted with AES-256-GCM; agent resolves them at run time and redacts output | secrets never in the job table; visible on the command line during install (documented limit) | accepted |
 | ADR-21 | Repository packages: configuration changes create a *revision* of the package | devices reconcile to the new configuration; revision history is the audit trail of settings | accepted |
@@ -269,6 +269,7 @@ flowchart LR
 | ADR-41 | The individual updates of a run are stored in a separate table (`run_items`), not as text in the run | allows searching across devices ("who got this update?") and paging; deleted with the run by cascade | accepted |
 | ADR-42 | Updates from the operating system's own history are stored separately (`reported_updates`) and marked "not via ODM" unless they fall into an ODM run's time span | no fragile title matching; also correct for runs from before per-run lists existed | accepted |
 | ADR-43 | Package dependencies are expanded in the reconciler into desired state at lowest priority plus prerequisites; package managers (Chocolatey, Flatpak, Snap) are not installed implicitly but can be modelled as ordinary packages that others require | reuses the prerequisite mechanism of profiles; no hidden installs of system tooling | accepted |
+| ADR-44 | No assignment target "user" (devices of a primary user); packages and profiles go to devices or groups | removed until there is a real need: the primary user is maintained by hand, so a group rule on the primary user covers the same case; existing user assignments are deleted by migration | accepted |
 
 ## 10. Quality requirements
 
@@ -303,7 +304,7 @@ flowchart LR
 | Term | Meaning |
 |---|---|
 | Agent | worker service on a managed device |
-| Assignment | desired state: a package or profile (with an action) for a device, user or group |
+| Assignment | desired state: a package or profile (with an action) for a device or group |
 | Installation | actual state of one package on one device |
 | Job | unit of work queued for one agent (ping, install, OS update) |
 | Profile | ordered list of packages installed in sequence |

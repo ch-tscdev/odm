@@ -9,7 +9,7 @@ auto-updating repository packages are picked up automatically. Installation is a
 1. **Software** → create a package → upload a ZIP with the PSADT package as a new version. The ZIP must contain
    `Invoke-AppDeployToolkit.ps1` (PSADT v4) or `Deploy-Application.ps1` (v3) in its root or one level below.
    The agent runs it with `-DeploymentType Install -DeployMode Silent` (`Uninstall` for removal).
-2. Assign the package to a group, device or user (primary user). *Latest* distributes new versions automatically,
+2. Assign the package to a group or a device. *Latest* distributes new versions automatically,
    *Pinned* only the chosen version.
 3. Status per device is shown under *Installations*. Failed installations are retried up to 3 times (every 15 minutes),
    then *Retry* restarts them.
@@ -19,7 +19,7 @@ Notes:
 - The agent downloads the package through the ODM server (not directly from S3); the server checks that the device has a
   job for exactly that version. The agent verifies the SHA-256 checksum before unpacking.
 - Packages are unpacked in a protected working directory (not `%TEMP%`) because they run as SYSTEM.
-- When a package is assigned to a device several times, the most specific source wins: device before user before group.
+- When a package is assigned to a device several times, the most specific source wins: device before group.
 - PSADT packages have a **platform** (Windows or Linux, chosen when the package is created and not changeable afterwards).
   Windows packages run with Windows PowerShell 5.1 on Windows devices. Exit codes 0, 1641 and 3010 count as success.
 - **PSADT on Linux** uses [PSAppDeployToolkit-Linux](https://github.com/tschlaeppi/PSAppDeployToolkit-Linux): upload a ZIP that is
@@ -93,13 +93,13 @@ edit packages can pass a secret to arbitrary arguments. Treat secrets as credent
 
 A profile is an ordered list of packages (PSADT and repository packages mixed).
 
-- Assign a profile to a device, user or group. On each device a package starts only when all packages before it are installed.
+- Assign a profile to a device or group. On each device a package starts only when all packages before it are installed.
   If a package fails for good (3 attempts), the following ones wait until *Retry* succeeds.
 - Packages that do not fit a device (e.g. Winget on Linux) are skipped and do not block the order.
-- When the same package comes from several sources, the more specific wins: device before user before group; for the same
+- When the same package comes from several sources, the more specific wins: device before group; for the same
   target a single package assignment before a profile.
 - Profile items of PSADT packages may pin a version.
-- The device page shows every profile that applies to the device (directly, via its user or via a group) below the software table, with the
+- The device page shows every profile that applies to the device (directly or via a group) below the software table, with the
   state of each package: the installation status, or *Scheduled* (rollout stage not reached yet), *Not applicable* (other platform or
   distribution) or *No version available*.
 

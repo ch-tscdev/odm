@@ -45,7 +45,6 @@
   // Neue Zuweisung
   let targetKind = $state<TargetKind>('Group')
   let groupId = $state('')
-  let userName = $state('')
   let deviceSearch = $state('')
   let deviceResults = $state<DeviceDto[]>([])
   let deviceId = $state('')
@@ -173,11 +172,10 @@
   async function addAssignment(event: SubmitEvent) {
     event.preventDefault()
     assignError = null
-    const target = targetKind === 'Group' ? groupId : targetKind === 'Device' ? deviceId : userName.trim()
+    const target = targetKind === 'Group' ? groupId : deviceId
     try {
       await api.createProfileAssignment(id, targetKind, target, rollout)
       rollout = null
-      userName = ''
       deviceSearch = ''
       deviceId = ''
       await loadAssignments()
@@ -309,7 +307,7 @@
           <label>
             <span>{i18n.t('sw.targetKind')}</span>
             <select bind:value={targetKind}>
-              {#each ['Group', 'Device', 'User'] as kind}
+              {#each ['Group', 'Device'] as kind}
                 <option value={kind}>{i18n.t(`sw.targetKind.${kind}` as MessageKey)}</option>
               {/each}
             </select>
@@ -325,7 +323,7 @@
                 {/each}
               </select>
             </label>
-          {:else if targetKind === 'Device'}
+          {:else}
             <label class="grow">
               <span>{i18n.t('sw.searchDevice')}</span>
               <input bind:value={deviceSearch} />
@@ -338,11 +336,6 @@
                   <option value={d.id}>{d.name}</option>
                 {/each}
               </select>
-            </label>
-          {:else}
-            <label class="grow">
-              <span>{i18n.t('sw.userName')}</span>
-              <input bind:value={userName} required maxlength="256" />
             </label>
           {/if}
 
