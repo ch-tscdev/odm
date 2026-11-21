@@ -18,7 +18,4 @@ public interface IDeviceDirectory
 
     /// <summary>Current members of a dynamic group (devices waiting for approval are never members).</summary>
     Task<IReadOnlyList<DeviceRef>> ResolveGroupAsync(Guid groupId, CancellationToken ct);
-
-    /// <summary>Devices whose primary user is the given user (without devices waiting for approval).</summary>
-    Task<IReadOnlyList<DeviceRef>> ResolveUserAsync(string userName, CancellationToken ct);
 }

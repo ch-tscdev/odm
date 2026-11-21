@@ -2,11 +2,11 @@ using Odm.SharedKernel;
 
 namespace Odm.Modules.Software.Domain;
 
-/// <summary>Order = precedence when the same package is assigned to a device several times (device before user before group).</summary>
+/// <summary>Order = precedence when the same package is assigned to a device several times (device before group).</summary>
+/// <remarks>Stored as text. Value 1 belonged to the removed target "User" and stays unused.</remarks>
 public enum TargetKind
 {
     Device = 0,
-    User = 1,
     Group = 2
 }
 

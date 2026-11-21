@@ -47,14 +47,5 @@ internal sealed class DeviceDirectory(DevicesDbContext db) : IDeviceDirectory
         return devices.Select(Map).ToList();
     }
 
-    public async Task<IReadOnlyList<DeviceRef>> ResolveUserAsync(string userName, CancellationToken ct)
-    {
-        var lowered = userName.Trim().ToLower();
-        var devices = await db.Devices.AsNoTracking()
-            .Where(d => !d.ApprovalPending && d.PrimaryUser != null && d.PrimaryUser.ToLower() == lowered)
-            .ToListAsync(ct);
-        return devices.Select(Map).ToList();
-    }
-
     private static DeviceRef Map(Device d) => new(d.Id, d.Name, d.OsFamily.ToString(), d.OsName, d.ApprovalPending);
 }

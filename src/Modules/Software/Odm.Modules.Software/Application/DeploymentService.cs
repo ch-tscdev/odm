@@ -360,8 +360,6 @@ public sealed class DeploymentService(
                 return Guid.TryParse(target, out var groupId)
                     ? await directory.ResolveGroupAsync(groupId, ct)
                     : [];
-            case TargetKind.User:
-                return await directory.ResolveUserAsync(target, ct);
             default:
                 return [];
         }
