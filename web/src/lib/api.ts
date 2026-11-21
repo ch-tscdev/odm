@@ -750,6 +750,19 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, description, kind, spec }),
     }),
+  /** Starts the browser's own download of a PSADT version via a short-lived link (no size limit from memory). */
+  downloadVersion: async (packageId: string, versionId: string) => {
+    const link = await request<{ url: string; expiresAt: string }>(
+      `/software/packages/${packageId}/versions/${versionId}/download-link`,
+      { method: 'POST' },
+    )
+    const a = document.createElement('a')
+    a.href = `/api${link.url}`
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  },
   deleteVersion: (packageId: string, versionId: string) =>
     request<void>(`/software/packages/${packageId}/versions/${versionId}`, { method: 'DELETE' }),
   updatePackage: (id: string, description: string | null, spec: PackageSpec, name?: string, dependsOn?: string[]) =>

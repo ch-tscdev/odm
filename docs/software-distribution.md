@@ -14,6 +14,12 @@ auto-updating repository packages are picked up automatically. Installation is a
 3. Status per device is shown under *Installations*. Failed installations are retried up to 3 times (every 15 minutes),
    then *Retry* restarts them.
 
+**New version from an existing one:** *Download* next to a version (operators and administrators) saves its ZIP
+(`<package>-<version>.zip`). Adjust it, upload it as a new version, test it with a pinned assignment to a test device or
+group, then roll it out (e.g. switch the assignment to *Latest* or use rollout stages). The browser requests a signed link
+that is valid for one version and 60 seconds and then downloads the file directly, so even large packages are not held
+in memory. Each download link is recorded in the audit log.
+
 Notes:
 
 - The agent downloads the package through the ODM server (not directly from S3); the server checks that the device has a
