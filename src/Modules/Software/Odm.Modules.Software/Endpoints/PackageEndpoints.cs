@@ -295,6 +295,48 @@ internal static partial class PackageEndpoints
             })
             .RequireAuthorization(Policies.Operator);
 
+        // Download of a PSADT version (e.g. to build the next version from it), in two steps: the signed-in operator
+        // requests a short-lived link (recorded in the audit log), the browser then fetches the file natively.
+        group.MapPost("/{id:guid}/versions/{versionId:guid}/download-link", async (
+                Guid id, Guid versionId, SoftwareDbContext db, PackageDownloadTokens tokens, CancellationToken ct) =>
+            {
+                var version = await db.Versions.AsNoTracking().SingleOrDefaultAsync(v => v.Id == versionId && v.PackageId == id, ct);
+                if (version?.ObjectKey is null)
+                {
+                    return Results.NotFound();
+                }
+
+                var (token, expiresAt) = tokens.Create(versionId);
+                return Results.Ok(new DownloadLinkDto(
+                    $"/software/packages/{id}/versions/{versionId}/download?token={Uri.EscapeDataString(token)}", expiresAt));
+            })
+            .RequireAuthorization(Policies.Operator);
+
+        // No session here: the signed link from the step above is the authorization.
+        endpoints.MapGet("/software/packages/{id:guid}/versions/{versionId:guid}/download", async (
+                Guid id, Guid versionId, string? token, HttpResponse response, SoftwareDbContext db, IPackageStorage storage,
+                PackageDownloadTokens tokens, CancellationToken ct) =>
+            {
+                if (!tokens.IsValid(token, versionId))
+                {
+                    return Results.NotFound();
+                }
+
+                var package = await db.Packages.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct);
+                var version = await db.Versions.AsNoTracking().SingleOrDefaultAsync(v => v.Id == versionId && v.PackageId == id, ct);
+                if (package is null || version?.ObjectKey is null)
+                {
+                    return Results.NotFound();
+                }
+
+                var stream = await storage.OpenReadAsync(version.ObjectKey, ct);
+                response.ContentLength = version.SizeBytes;
+                response.Headers.CacheControl = "no-store";
+                return Results.Stream(stream, "application/zip", PackageDownloadTokens.FileName(package.Name, version.Version));
+            })
+            .WithTags("Software")
+            .AllowAnonymous();
+
         group.MapPost("/{id:guid}/versions", async (
                 Guid id, HttpRequest http, SoftwareDbContext db, IPackageStorage storage,
                 DeploymentTrigger trigger, CancellationToken ct) =>

@@ -39,7 +39,8 @@ public class SecurityGuardTests
         {
             ["src/Modules/Identity/Odm.Modules.Identity/IdentityModule.cs"] = 4, // sign-in, provider list, OIDC start and callback
             ["src/Modules/Agents/Odm.Modules.Agents/Endpoints/InstallEndpoints.cs"] = 1, // install scripts and agent downloads
-            ["src/Modules/Agents/Odm.Modules.Agents/Endpoints/AgentEndpoints.cs"] = 1 // registration with a one-time token
+            ["src/Modules/Agents/Odm.Modules.Agents/Endpoints/AgentEndpoints.cs"] = 1, // registration with a one-time token
+            ["src/Modules/Software/Odm.Modules.Software/Endpoints/PackageEndpoints.cs"] = 1 // PSADT download with a signed, short-lived link
         };
 
         Assert.Equal(expected.OrderBy(x => x.Key), actual.OrderBy(x => x.Key));

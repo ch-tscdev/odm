@@ -227,6 +227,15 @@
 
   let versionError = $state<string | null>(null)
 
+  async function downloadVersion(v: VersionDto) {
+    versionError = null
+    try {
+      await api.downloadVersion(id, v.id)
+    } catch (e) {
+      versionError = (e instanceof ApiError && e.detail) || i18n.t('sw.versionDownloadFailed')
+    }
+  }
+
   async function removeVersion(v: VersionDto) {
     if (!confirm(i18n.t('sw.confirmDeleteVersion', { version: v.version }))) return
     versionError = null
@@ -294,6 +303,7 @@
 {#snippet versionSize(v: VersionDto)}{formatSize(v.sizeBytes)}{/snippet}
 {#snippet versionDate(v: VersionDto)}{i18n.formatDate(v.uploadedAt)}{/snippet}
 {#snippet versionActions(v: VersionDto)}
+  <button class="ghost" onclick={() => downloadVersion(v)}>{i18n.t('sw.downloadVersion')}</button>
   <button class="ghost" onclick={() => removeVersion(v)}>{i18n.t('sw.deleteVersion')}</button>
 {/snippet}
 {#snippet versionSha(v: VersionDto)}<code title={v.sha256 ?? ''}>{(v.sha256 ?? '').slice(0, 12)}…</code>{/snippet}

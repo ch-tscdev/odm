@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odm.Modules.Software.Application;
@@ -46,6 +47,8 @@ public sealed class SoftwareModule : IModule
             .ValidateOnStart();
 
         services.AddSingleton<SecretProtector>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<PackageDownloadTokens>();
         services.AddSingleton<IPackageStorage, S3PackageStorage>();
         services.AddSingleton<DeploymentTrigger>();
         services.AddScoped<DeploymentService>();

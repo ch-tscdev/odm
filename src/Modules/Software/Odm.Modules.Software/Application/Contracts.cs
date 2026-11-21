@@ -14,6 +14,9 @@ public sealed record UpdatePackageRequest(
 
 public sealed record PackageRefDto(Guid Id, string Name);
 
+/// <summary>Relative URL (below /api) of a short-lived download link and its expiry.</summary>
+public sealed record DownloadLinkDto(string Url, DateTimeOffset ExpiresAt);
+
 public sealed record VersionDto(Guid Id, string Version, long SizeBytes, string? Sha256, string? Notes, DateTimeOffset UploadedAt);
 
 public sealed record PackageDto(
