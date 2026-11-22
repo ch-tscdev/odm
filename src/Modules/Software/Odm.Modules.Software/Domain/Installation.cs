@@ -22,6 +22,7 @@ public sealed class Installation : Entity
 {
     public const int MaxAttempts = 3;
     public const int MaxMessageLength = 64000;
+    public const int MaxReportedVersionLength = 128;
 
     private static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan RunningTimeout = TimeSpan.FromHours(6);
@@ -30,6 +31,12 @@ public sealed class Installation : Entity
     public Guid PackageId { get; private set; }
     public Guid TargetVersionId { get; private set; }
     public Guid? InstalledVersionId { get; private set; }
+
+    /// <summary>
+    /// Version actually installed according to the device's package manager (repo packages, reported by the agent
+    /// after a successful run). Null for PSADT, for agents before 0.9.2 and when the agent could not determine it.
+    /// </summary>
+    public string? ReportedVersion { get; private set; }
 
     /// <summary>Version for which the current or last job was issued.</summary>
     public Guid? JobVersionId { get; private set; }
@@ -127,7 +134,7 @@ public sealed class Installation : Entity
         UpdatedAt = now;
     }
 
-    public void Complete(bool success, string? output, DateTimeOffset now)
+    public void Complete(bool success, string? output, DateTimeOffset now, string? reportedVersion = null)
     {
         UpdatedAt = now;
         Message = output is { Length: > MaxMessageLength } ? output[^MaxMessageLength..] : output;
@@ -136,12 +143,16 @@ public sealed class Installation : Entity
         {
             Status = InstallStatus.Removed;
             InstalledVersionId = null;
+            ReportedVersion = null;
             Attempts = 0;
         }
         else if (success)
         {
             Status = InstallStatus.Installed;
             InstalledVersionId = JobVersionId;
+            ReportedVersion = reportedVersion is { Length: > MaxReportedVersionLength }
+                ? reportedVersion[..MaxReportedVersionLength]
+                : reportedVersion;
             Attempts = 0;
         }
         else

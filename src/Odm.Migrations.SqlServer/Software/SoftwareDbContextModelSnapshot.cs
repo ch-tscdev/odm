@@ -105,6 +105,10 @@ namespace Odm.Migrations.SqlServer.Software
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("ReportedVersion")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)

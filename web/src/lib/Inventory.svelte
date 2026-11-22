@@ -11,6 +11,7 @@
   } from './api'
   import DataTable, { type Column } from './DataTable.svelte'
   import { i18n, type MessageKey } from './i18n.svelte'
+  import { versionText } from './versions'
 
   const reasons = ['Failed', 'Pending', 'Running', 'VersionMismatch', 'RemovalPending', 'RemovalFailed']
 
@@ -107,8 +108,8 @@
     { key: 'device', label: i18n.t('inv.device'), value: (r) => r.deviceName, cell: complianceDevice, strong: true },
     { key: 'package', label: i18n.t('sw.name'), value: (r) => r.packageName },
     { key: 'reason', label: i18n.t('cmp.reason'), value: (r) => reasonLabel(r.reason), filter: 'select' },
-    { key: 'target', label: i18n.t('dev.detail.target'), value: (r) => r.targetVersion },
-    { key: 'installed', label: i18n.t('dev.detail.installed'), value: (r) => r.installedVersion },
+    { key: 'target', label: i18n.t('dev.detail.target'), value: (r) => versionText(r.targetVersion) },
+    { key: 'installed', label: i18n.t('dev.detail.installed'), value: (r) => versionText(r.installedVersion) },
     { key: 'updated', label: i18n.t('dev.detail.updated'), value: (r) => r.updatedAt, cell: complianceUpdated, filter: 'none' },
   ])
 

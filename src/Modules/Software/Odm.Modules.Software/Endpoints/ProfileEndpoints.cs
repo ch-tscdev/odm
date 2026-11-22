@@ -167,9 +167,9 @@ internal static class ProfileEndpoints
             var packages = await db.Packages.AsNoTracking().Where(p => packageIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
             var versions = await db.Versions.AsNoTracking()
                 .Where(v => packageIds.Contains(v.PackageId))
-                .Select(v => new { v.Id, v.PackageId, v.Version, v.UploadedAt })
+                .Select(v => new { v.Id, v.PackageId, v.Version, v.SpecSnapshot, v.UploadedAt })
                 .ToListAsync(ct);
-            var versionNames = versions.ToDictionary(v => v.Id, v => v.Version);
+            var versionNames = versions.ToDictionary(v => v.Id, v => VersionLabels.Display(v.Version, v.SpecSnapshot));
             var hasVersion = versions.Select(v => v.PackageId).ToHashSet();
             var installations = await db.Installations.AsNoTracking()
                 .Where(i => i.DeviceId == deviceId && packageIds.Contains(i.PackageId))
@@ -199,7 +199,7 @@ internal static class ProfileEndpoints
                             return new DeviceProfileItemDto(
                                 index, package.Id, package.Name, installation.Status.ToString(),
                                 versionNames.GetValueOrDefault(installation.TargetVersionId),
-                                installation.InstalledVersionId is { } installed ? versionNames.GetValueOrDefault(installed) : null,
+                                VersionLabels.Installed(installation, versionNames),
                                 installation.Attempts, installation.Message, installation.UpdatedAt);
                         }
 

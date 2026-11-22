@@ -119,6 +119,7 @@ public sealed class SoftwareDbContext(DbContextOptions<SoftwareDbContext> option
             b.Property(i => i.Status).HasConversion<string>().HasMaxLength(16);
             b.Property(i => i.Removal).HasDefaultValue(false);
             b.Property(i => i.Message).HasMaxLength(Installation.MaxMessageLength);
+            b.Property(i => i.ReportedVersion).HasMaxLength(Installation.MaxReportedVersionLength);
             b.HasIndex(i => new { i.DeviceId, i.PackageId }).IsUnique();
             b.HasIndex(i => i.JobId);
             b.HasOne<SoftwarePackage>().WithMany().HasForeignKey(i => i.PackageId).OnDelete(DeleteBehavior.Cascade);

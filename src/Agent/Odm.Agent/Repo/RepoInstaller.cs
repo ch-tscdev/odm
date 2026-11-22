@@ -52,7 +52,20 @@ public static class RepoInstaller
         try
         {
             var env = AptEnvironmentWith(environment);
-            return await (p.Uninstall ? UninstallAsync(p, env, timeout, ct) : InstallOrUpdateAsync(p, extra, env, timeout, ct));
+            if (p.Uninstall)
+            {
+                return await UninstallAsync(p, env, timeout, ct);
+            }
+
+            var result = await InstallOrUpdateAsync(p, extra, env, timeout, ct);
+            if (!result.Success)
+            {
+                return result;
+            }
+
+            // Report the version the package manager actually installed (shown in ODM instead of the revision label).
+            var version = await InstalledVersion.QueryAsync(p, (file, args, limit) => Exec(p, file, args, limit, ct), ct);
+            return result with { Output = InstalledVersion.AppendMarker(result.Output, version) };
         }
         catch (UserContextException ex)
         {

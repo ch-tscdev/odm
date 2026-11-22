@@ -4,6 +4,7 @@
   import { auth } from './auth.svelte'
   import DataTable, { type Column } from './DataTable.svelte'
   import { i18n, type MessageKey } from './i18n.svelte'
+  import { versionText } from './versions'
   import PackageSpecForm from './PackageSpecForm.svelte'
   import SecretDialog from './SecretDialog.svelte'
   import { router } from './router.svelte'
@@ -94,7 +95,7 @@
   const columns = $derived<Column<PackageDto>[]>([
     { key: 'name', label: i18n.t('sw.name'), value: (p) => p.name, cell: nameCell, strong: true },
     { key: 'kind', label: i18n.t('sw.kindLabel'), value: (p) => i18n.t(`sw.kind.${p.kind}` as MessageKey), filter: 'select' },
-    { key: 'latest', label: i18n.t('sw.latest'), value: (p) => p.latestVersion },
+    { key: 'latest', label: i18n.t('sw.latest'), value: (p) => versionText(p.latestVersion) },
     { key: 'desc', label: i18n.t('sw.description'), value: (p) => p.description, muted: true },
   ])
 
