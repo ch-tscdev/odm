@@ -21,7 +21,8 @@ public sealed class DeploymentJobListener(SoftwareDbContext db, DeploymentTrigge
             return;
         }
 
-        installation.Complete(completion.Success, completion.Output, DateTimeOffset.UtcNow);
+        var (output, version) = InstalledVersionMarker.Extract(completion.Output);
+        installation.Complete(completion.Success, output, DateTimeOffset.UtcNow, version);
         await db.SaveChangesAsync(ct);
 
         // If a newer version has been requested in the meantime, the reconciliation should pick that up immediately.

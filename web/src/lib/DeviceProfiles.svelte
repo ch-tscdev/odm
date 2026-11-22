@@ -3,6 +3,7 @@
   import { api, type DeviceProfileDto, type DeviceProfileItemDto } from './api'
   import DataTable, { type Column } from './DataTable.svelte'
   import { i18n, type MessageKey } from './i18n.svelte'
+  import { versionText } from './versions'
 
   let { deviceId }: { deviceId: string } = $props()
 
@@ -39,8 +40,8 @@
     { key: 'position', label: '#', value: (i) => i.position + 1, align: 'right', filter: 'none' },
     { key: 'package', label: i18n.t('sw.name'), value: (i) => i.packageName, cell: packageName, strong: true },
     { key: 'status', label: i18n.t('sw.status'), value: (i) => i18n.t(`sw.status.${i.status}` as MessageKey), cell: status, filter: 'select' },
-    { key: 'target', label: i18n.t('dev.detail.target'), value: (i) => i.targetVersion },
-    { key: 'installed', label: i18n.t('dev.detail.installed'), value: (i) => i.installedVersion },
+    { key: 'target', label: i18n.t('dev.detail.target'), value: (i) => versionText(i.targetVersion) },
+    { key: 'installed', label: i18n.t('dev.detail.installed'), value: (i) => versionText(i.installedVersion) },
     { key: 'message', label: i18n.t('dev.detail.message'), value: (i) => i.message, cell: message, muted: true },
   ])
 

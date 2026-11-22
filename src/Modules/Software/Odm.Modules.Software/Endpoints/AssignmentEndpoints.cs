@@ -175,9 +175,7 @@ internal static class AssignmentEndpoints
                 .Take(500)
                 .ToListAsync(ct);
 
-            var versions = await db.Versions.AsNoTracking()
-                .Where(v => v.PackageId == packageId)
-                .ToDictionaryAsync(v => v.Id, v => v.Version, ct);
+            var versions = await VersionLabels.LoadAsync(db.Versions.Where(v => v.PackageId == packageId), ct);
             var devices = await directory.GetManyAsync(rows.Select(i => i.DeviceId).ToList(), ct);
 
             return Results.Ok(rows.Select(i => new InstallationDto(
@@ -185,7 +183,7 @@ internal static class AssignmentEndpoints
                 devices.TryGetValue(i.DeviceId, out var device) ? device.Name : null,
                 i.PackageId, package.Name,
                 versions.GetValueOrDefault(i.TargetVersionId),
-                i.InstalledVersionId is { } installed ? versions.GetValueOrDefault(installed) : null,
+                VersionLabels.Installed(i, versions),
                 i.Status.ToString(), i.Attempts, i.Message, i.UpdatedAt, i.Removal)));
         });
 
@@ -207,9 +205,7 @@ internal static class AssignmentEndpoints
             var names = await db.Packages.AsNoTracking()
                 .Where(p => packageIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
-            var versions = await db.Versions.AsNoTracking()
-                .Where(v => packageIds.Contains(v.PackageId))
-                .ToDictionaryAsync(v => v.Id, v => v.Version, ct);
+            var versions = await VersionLabels.LoadAsync(db.Versions.Where(v => packageIds.Contains(v.PackageId)), ct);
 
             // Waiting installations: which required packages are not installed yet?
             var edges = (await db.Dependencies.AsNoTracking().Select(d => new { d.PackageId, d.DependsOnId }).ToListAsync(ct))
@@ -220,7 +216,7 @@ internal static class AssignmentEndpoints
                 i.Id, i.DeviceId, device.Name,
                 i.PackageId, names.GetValueOrDefault(i.PackageId, "?"),
                 versions.GetValueOrDefault(i.TargetVersionId),
-                i.InstalledVersionId is { } installed ? versions.GetValueOrDefault(installed) : null,
+                VersionLabels.Installed(i, versions),
                 i.Status.ToString(), i.Attempts, i.Message, i.UpdatedAt, i.Removal,
                 i.Status == InstallStatus.Pending && !i.Removal
                     ? DependencyRules.Closure(i.PackageId, edges)

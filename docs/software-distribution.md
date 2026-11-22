@@ -62,7 +62,11 @@ Winget, Chocolatey, APT, RPM, Flatpak and Snap. ODM stores only the configuratio
 
 - **Fixed or automatic version:** with a version entered exactly that version is installed. With the field empty the package
   manager installs the latest version and ODM has it refreshed every `Software:RepoRefreshHours` (default 24, 0 = never).
-  Changing the settings creates a new *revision*; all assigned devices are reconciled to it.
+  Changing the settings creates a new *revision*; all assigned devices are reconciled to it. Revisions are internal: the
+  package page lists them as settings history, everywhere else ODM shows the pinned version or *latest*.
+- **Installed version:** after a successful installation the agent (0.9.2 or later) asks the package manager which version is
+  installed (`dpkg-query`, `rpm -q`, `snap list`, `flatpak info`, `winget list`, Chocolatey's `.nuspec`) and ODM shows it as
+  the installed version. If it cannot be determined, the target (pinned version or *latest*) is shown.
 - **Always unattended:** Winget `--silent --disable-interactivity`, Chocolatey `-y`, APT/DNF `-y`, Flatpak `--noninteractive`.
 - **Per manager:** Winget (scope `machine`/`user`, source), Chocolatey (source), Flatpak (scope, remote; *version* = commit ID),
   Snap (channel, classic; *version* = revision), APT and RPM (name, version).

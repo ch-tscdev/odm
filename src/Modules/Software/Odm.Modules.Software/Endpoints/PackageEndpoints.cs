@@ -45,14 +45,15 @@ internal static partial class PackageEndpoints
         {
             var packages = await db.Packages.AsNoTracking().OrderBy(p => p.Name).ToListAsync(ct);
             var versions = await db.Versions.AsNoTracking()
-                .Select(v => new { v.PackageId, v.Version, v.UploadedAt })
+                .Select(v => new { v.PackageId, v.Version, v.SpecSnapshot, v.UploadedAt })
                 .ToListAsync(ct);
 
             var result = packages.Select(p =>
             {
                 var own = versions.Where(v => v.PackageId == p.Id).OrderByDescending(v => v.UploadedAt).ToList();
                 return new PackageDto(p.Id, p.Name, p.Description, p.Kind.ToString(), p.CreatedAt,
-                    own.FirstOrDefault()?.Version, own.Count, ToDto(p.Spec));
+                    own.FirstOrDefault() is { } latest ? VersionLabels.Display(latest.Version, latest.SpecSnapshot) : null,
+                    own.Count, ToDto(p.Spec));
             });
             return Results.Ok(result);
         });

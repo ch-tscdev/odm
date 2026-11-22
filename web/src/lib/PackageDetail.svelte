@@ -20,6 +20,7 @@
   import DependencyPicker, { type DependencyOption } from './DependencyPicker.svelte'
   import { formatSize } from './format'
   import { i18n, type MessageKey } from './i18n.svelte'
+  import { revisionText, versionText } from './versions'
   import MessageDialog from './MessageDialog.svelte'
   import PackageSpecForm from './PackageSpecForm.svelte'
   import RolloutEditor from './RolloutEditor.svelte'
@@ -271,7 +272,7 @@
     return a.target
   }
   const versionColumns = $derived<Column<VersionDto>[]>([
-    { key: 'version', label: i18n.t('sw.version'), value: (v) => v.version, strong: true },
+    { key: 'version', label: i18n.t('sw.version'), value: (v) => (pkg?.kind === 'Psadt' ? v.version : revisionText(v.version)), strong: true },
     ...(pkg?.kind === 'Psadt'
       ? [{ key: 'size', label: i18n.t('sw.size'), value: (v: VersionDto) => v.sizeBytes, cell: versionSize, align: 'right' as const, filter: 'none' as const }]
       : []),
@@ -292,8 +293,8 @@
 
   const installationColumns = $derived<Column<InstallationDto>[]>([
     { key: 'device', label: i18n.t('devices.name'), value: (i) => i.deviceName ?? i.deviceId, cell: installationDevice, strong: true },
-    { key: 'target', label: i18n.t('sw.targetVersion'), value: (i) => i.targetVersion },
-    { key: 'installed', label: i18n.t('sw.installedVersion'), value: (i) => i.installedVersion },
+    { key: 'target', label: i18n.t('sw.targetVersion'), value: (i) => versionText(i.targetVersion) },
+    { key: 'installed', label: i18n.t('sw.installedVersion'), value: (i) => versionText(i.installedVersion) },
     { key: 'status', label: i18n.t('sw.status'), value: (i) => i18n.t(`sw.status.${i.status}` as MessageKey), cell: installationStatus, filter: 'select' },
     { key: 'attempts', label: i18n.t('sw.attempts'), value: (i) => i.attempts, align: 'right', filter: 'none' },
     { key: 'message', label: i18n.t('dev.detail.message'), value: (i) => i.message, cell: installationMessage, muted: true },

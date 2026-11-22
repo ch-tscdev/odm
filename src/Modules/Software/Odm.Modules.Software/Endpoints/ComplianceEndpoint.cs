@@ -49,7 +49,7 @@ internal static class ComplianceEndpoint
     {
         // Compliance is judged in memory: the rules compare version IDs and removal flags, which keeps them testable.
         var all = await db.Installations.AsNoTracking()
-            .Select(i => new { i.Id, i.DeviceId, i.PackageId, i.Status, i.Removal, i.InstalledVersionId, i.TargetVersionId, i.Attempts, i.UpdatedAt })
+            .Select(i => new { i.Id, i.DeviceId, i.PackageId, i.Status, i.Removal, i.InstalledVersionId, i.ReportedVersion, i.TargetVersionId, i.Attempts, i.UpdatedAt })
             .ToListAsync(ct);
 
         var deviations = all
@@ -66,14 +66,14 @@ internal static class ComplianceEndpoint
 
         var packageIds = shown.Select(x => x.Row.PackageId).Distinct().ToList();
         var names = await db.Packages.AsNoTracking().Where(p => packageIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.Name, ct);
-        var versions = await db.Versions.AsNoTracking().Where(v => packageIds.Contains(v.PackageId)).ToDictionaryAsync(v => v.Id, v => v.Version, ct);
+        var versions = await VersionLabels.LoadAsync(db.Versions.Where(v => packageIds.Contains(v.PackageId)), ct);
         var devices = await directory.GetManyAsync(shown.Select(x => x.Row.DeviceId).Distinct().ToList(), ct);
 
         var rows = shown.Select(x => new ComplianceRowDto(
             x.Row.DeviceId, devices.TryGetValue(x.Row.DeviceId, out var d) ? d.Name : "?",
             x.Row.PackageId, names.GetValueOrDefault(x.Row.PackageId, "?"), x.Reason!,
             versions.GetValueOrDefault(x.Row.TargetVersionId),
-            x.Row.InstalledVersionId is { } v ? versions.GetValueOrDefault(v) : null,
+            x.Row.ReportedVersion ?? (x.Row.InstalledVersionId is { } v ? versions.GetValueOrDefault(v) : null),
             x.Row.Attempts, x.Row.UpdatedAt)).ToList();
 
         return new ComplianceDto(all.Count, deviations.Count, counts, rows);
