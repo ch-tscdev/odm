@@ -37,18 +37,19 @@ public sealed class InstallRepoJobHandler(ILogger<InstallRepoJobHandler> logger)
         ResolvedArguments arguments;
         try
         {
-            // Additional arguments apply to installation, not to uninstallation.
-            arguments = await ResolvedArguments.ResolveAsync(payload.Uninstall ? null : payload.Arguments, job, context, ct);
+            // Additional arguments apply to installation, not to uninstallation; environment variables (APT) to both.
+            arguments = await ResolvedArguments.ResolveAsync(
+                payload.Uninstall ? null : payload.Arguments, payload.Environment, job, context, ct);
         }
         catch (Exception ex) when (ex is FormatException or InvalidOperationException)
         {
             return new JobOutcome(false, ex.Message);
         }
 
-        // Command and arguments are deliberately not logged: they may contain secrets.
+        // Command, arguments and environment values are deliberately not logged: they may contain secrets.
         logger.LogInformation("{Action} {Identifier} with {Manager}.", payload.Uninstall ? "Uninstalling" : "Installing", payload.Identifier, payload.Manager);
         var timeout = TimeSpan.FromMinutes(Math.Clamp(payload.TimeoutMinutes, 1, 24 * 60));
-        var result = await RepoInstaller.RunAsync(payload, arguments.Tokens, timeout, ct);
+        var result = await RepoInstaller.RunAsync(payload, arguments.Tokens, timeout, ct, arguments.Environment);
 
         return new JobOutcome(result.Success, SecretSubstitution.Redact(result.Output, arguments.SecretValues));
     }

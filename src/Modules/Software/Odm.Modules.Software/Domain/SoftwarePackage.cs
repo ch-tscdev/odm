@@ -44,7 +44,8 @@ public sealed record PackageSpec(
     string? Channel,
     bool Classic,
     string? Arguments,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Platform = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Platform = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Environment = null)
 {
     public const string LinuxPlatform = "Linux";
 
@@ -54,6 +55,10 @@ public sealed record PackageSpec(
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public static PackageSpec Empty { get; } = new(null, null, null, null, null, null, false, null);
+
+    /// <summary>Text in which secrets may be referenced ({{secret:NAME}}): additional arguments and environment variables.</summary>
+    [JsonIgnore]
+    public string SecretText => $"{Arguments}\n{Environment}";
 
     /// <summary>Repo packages without a pinned version are updated automatically by the package manager.</summary>
     public bool AutoUpdate => Version is null;

@@ -341,7 +341,7 @@ public sealed class DeploymentService(
         return (AgentJobTypes.InstallRepo, JsonSerializer.Serialize(
             new InstallRepoPayload(
                 package.Kind.ToString(), spec.Identifier ?? "", spec.Version, spec.Scope, spec.Source, spec.Remote,
-                spec.Channel, spec.Classic, spec.Arguments, InstallTimeoutMinutes, uninstall),
+                spec.Channel, spec.Classic, spec.Arguments, InstallTimeoutMinutes, uninstall, spec.Environment),
             Json));
     }
 

@@ -141,6 +141,8 @@ export interface PackageSpec {
   arguments: string | null
   /** PSADT only: 'Windows' (default) or 'Linux'. */
   platform?: string | null
+  /** APT only: environment variables, one NAME=value per line. */
+  environment?: string | null
 }
 
 export interface SecretDto {

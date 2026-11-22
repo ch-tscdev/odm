@@ -62,8 +62,8 @@ internal static class SecretEndpoints
                     .Where(v => v.SpecSnapshot != null)
                     .Select(v => v.SpecSnapshot)
                     .ToListAsync(ct);
-                var used = packages.Any(p => SecretReferences.Extract(p.Spec.Arguments).Contains(name))
-                           || snapshots.Any(s => SecretReferences.Extract(PackageSpec.Parse(s).Arguments).Contains(name));
+                var used = packages.Any(p => SecretReferences.Extract(p.Spec.SecretText).Contains(name))
+                           || snapshots.Any(s => SecretReferences.Extract(PackageSpec.Parse(s).SecretText).Contains(name));
                 if (used)
                 {
                     return Results.Conflict();
@@ -74,7 +74,7 @@ internal static class SecretEndpoints
             })
             .RequireAuthorization(Policies.Admin);
 
-        // Agent: values of the secrets that the currently running job uses in its arguments.
+        // Agent: values of the secrets that the currently running job uses in its arguments or environment variables.
         endpoints.MapPost("/agent/v1/secrets/resolve", async (
                 ResolveSecretsRequest request, ClaimsPrincipal principal, SoftwareDbContext db,
                 SecretProtector protector, IDeviceRegistry devices, CancellationToken ct) =>
@@ -106,11 +106,11 @@ internal static class SecretEndpoints
                         .Where(v => v.Id == installation.JobVersionId)
                         .Select(v => v.SpecSnapshot)
                         .SingleOrDefaultAsync(ct);
-                    arguments = PackageSpec.Parse(snapshot).Arguments;
+                    arguments = PackageSpec.Parse(snapshot).SecretText;
                 }
                 else
                 {
-                    arguments = package.Spec.Arguments;
+                    arguments = package.Spec.SecretText;
                 }
 
                 var names = SecretReferences.Extract(arguments);

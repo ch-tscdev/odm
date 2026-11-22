@@ -11,6 +11,7 @@ export interface SpecForm {
   classic: boolean
   arguments: string
   platform: string
+  environment: string
 }
 
 export const repoKinds: PackageKind[] = ['Winget', 'Chocolatey', 'Apt', 'Rpm', 'Flatpak', 'Snap']
@@ -27,6 +28,7 @@ export function emptySpec(kind: PackageKind): SpecForm {
     classic: false,
     arguments: '',
     platform: 'Windows',
+    environment: '',
   }
 }
 
@@ -41,6 +43,7 @@ export function specFromDto(spec: PackageSpec): SpecForm {
     classic: spec.classic,
     arguments: spec.arguments ?? '',
     platform: spec.platform ?? 'Windows',
+    environment: spec.environment ?? '',
   }
 }
 
@@ -56,5 +59,6 @@ export function specToDto(form: SpecForm): PackageSpec {
     classic: form.classic,
     arguments: orNull(form.arguments),
     platform: form.platform,
+    environment: form.environment.trim() === '' ? null : form.environment,
   }
 }

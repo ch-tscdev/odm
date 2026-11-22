@@ -5,7 +5,8 @@ namespace Odm.Agent.Repo;
 /// <summary>Content of the job "install-repo" (counterpart of the server).</summary>
 public sealed record InstallRepoPayload(
     string Manager, string Identifier, string? Version, string? Scope, string? Source, string? Remote,
-    string? Channel, bool Classic, string? Arguments, int TimeoutMinutes, bool Uninstall = false);
+    string? Channel, bool Classic, string? Arguments, int TimeoutMinutes, bool Uninstall = false,
+    string? Environment = null);
 
 public sealed record RepoResult(bool Success, string Output);
 
@@ -29,12 +30,29 @@ public static class RepoInstaller
     // Winget: 0x8A150014 = no installed package found (already removed).
     private static readonly HashSet<int> WingetRemoveOk = [0, unchecked((int)0x8A150014), 1641, 3010];
 
+    /// <summary>
+    /// Environment of an APT run: the package's own variables, then the fixed ones on top (they keep the run
+    /// unattended and the output parseable, so the package cannot override them).
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> AptEnvironmentWith(IReadOnlyDictionary<string, string>? own)
+    {
+        var merged = new Dictionary<string, string>(own ?? new Dictionary<string, string>(), StringComparer.Ordinal);
+        foreach (var (key, value) in AptEnvironment)
+        {
+            merged[key] = value;
+        }
+
+        return merged;
+    }
+
     public static async Task<RepoResult> RunAsync(
-        InstallRepoPayload p, IReadOnlyList<string> extra, TimeSpan timeout, CancellationToken ct)
+        InstallRepoPayload p, IReadOnlyList<string> extra, TimeSpan timeout, CancellationToken ct,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         try
         {
-            return await (p.Uninstall ? UninstallAsync(p, timeout, ct) : InstallOrUpdateAsync(p, extra, timeout, ct));
+            var env = AptEnvironmentWith(environment);
+            return await (p.Uninstall ? UninstallAsync(p, env, timeout, ct) : InstallOrUpdateAsync(p, extra, env, timeout, ct));
         }
         catch (UserContextException ex)
         {
@@ -52,11 +70,12 @@ public static class RepoInstaller
             : ProcessRunner.RunAsync(file, arguments, timeout, ct);
 
     private static Task<RepoResult> InstallOrUpdateAsync(
-        InstallRepoPayload p, IReadOnlyList<string> extra, TimeSpan timeout, CancellationToken ct) => p.Manager switch
+        InstallRepoPayload p, IReadOnlyList<string> extra, IReadOnlyDictionary<string, string> aptEnv, TimeSpan timeout,
+        CancellationToken ct) => p.Manager switch
     {
         "Winget" => WingetAsync(p, extra, timeout, ct),
         "Chocolatey" => ChocolateyAsync(p, extra, timeout, ct),
-        "Apt" => AptAsync(p, extra, timeout, ct),
+        "Apt" => AptAsync(p, extra, aptEnv, timeout, ct),
         "Rpm" => RpmAsync(p, extra, timeout, ct),
         "Flatpak" => FlatpakAsync(p, extra, timeout, ct),
         "Snap" => SnapAsync(p, extra, timeout, ct),
@@ -154,7 +173,8 @@ public static class RepoInstaller
 
     public static List<string> SnapUninstallArguments(InstallRepoPayload p) => ["remove", p.Identifier];
 
-    private static async Task<RepoResult> UninstallAsync(InstallRepoPayload p, TimeSpan timeout, CancellationToken ct)
+    private static async Task<RepoResult> UninstallAsync(
+        InstallRepoPayload p, IReadOnlyDictionary<string, string> aptEnv, TimeSpan timeout, CancellationToken ct)
     {
         switch (p.Manager)
         {
@@ -177,7 +197,7 @@ public static class RepoInstaller
                 var apt = ToolLocator.Linux("apt-get");
                 return apt is null
                     ? Fail("apt-get is not available on this device (not a DEB based distribution).")
-                    : Summarize(await ProcessRunner.RunAsync(apt, AptUninstallArguments(p), timeout, ct, AptEnvironment), [0]);
+                    : Summarize(await ProcessRunner.RunAsync(apt, AptUninstallArguments(p), timeout, ct, aptEnv), [0]);
             }
             case "Rpm":
             {
@@ -225,7 +245,9 @@ public static class RepoInstaller
             : Summarize(await ProcessRunner.RunAsync(exe, ChocolateyArguments(p, extra), timeout, ct), ChocolateyOk);
     }
 
-    private static async Task<RepoResult> AptAsync(InstallRepoPayload p, IReadOnlyList<string> extra, TimeSpan timeout, CancellationToken ct)
+    private static async Task<RepoResult> AptAsync(
+        InstallRepoPayload p, IReadOnlyList<string> extra, IReadOnlyDictionary<string, string> aptEnv, TimeSpan timeout,
+        CancellationToken ct)
     {
         var apt = ToolLocator.Linux("apt-get");
         if (apt is null)
@@ -233,13 +255,13 @@ public static class RepoInstaller
             return Fail("apt-get is not available on this device (not a DEB based distribution).");
         }
 
-        var update = await ProcessRunner.RunAsync(apt, ["update", "-q"], timeout, ct, AptEnvironment);
+        var update = await ProcessRunner.RunAsync(apt, ["update", "-q"], timeout, ct, aptEnv);
         if (update.ExitCode != 0)
         {
             return Summarize(update, [0], "apt-get update");
         }
 
-        return Summarize(await ProcessRunner.RunAsync(apt, AptArguments(p, extra), timeout, ct, AptEnvironment), [0]);
+        return Summarize(await ProcessRunner.RunAsync(apt, AptArguments(p, extra), timeout, ct, aptEnv), [0]);
     }
 
     private static async Task<RepoResult> RpmAsync(InstallRepoPayload p, IReadOnlyList<string> extra, TimeSpan timeout, CancellationToken ct)

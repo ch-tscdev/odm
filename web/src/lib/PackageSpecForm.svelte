@@ -88,6 +88,21 @@
     <span>{i18n.t('sw.spec.arguments')}</span>
     <input bind:value={spec.arguments} maxlength="1000" autocomplete="off" />
   </label>
+
+  {#if kind === 'Apt'}
+    <label class="wide">
+      <span>{i18n.t('sw.spec.environment')}</span>
+      <textarea
+        bind:value={spec.environment}
+        rows="3"
+        maxlength="2000"
+        spellcheck="false"
+        autocomplete="off"
+        placeholder={'HTTP_PROXY=http://proxy.example.org:3128'}
+      ></textarea>
+      <span class="small">{i18n.t('sw.spec.environmentHint')}</span>
+    </label>
+  {/if}
 </div>
 
 <p class="muted small">
@@ -122,6 +137,10 @@
     gap: 0.35rem;
     font-size: 0.85rem;
     color: var(--muted);
+  }
+  textarea {
+    font-family: var(--mono, ui-monospace, monospace);
+    resize: vertical;
   }
   label.check {
     display: flex;

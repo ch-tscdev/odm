@@ -3,7 +3,7 @@ namespace Odm.Modules.Software.Application;
 /// <summary>Settings of a package; which fields apply depends on the kind.</summary>
 public sealed record PackageSpecDto(
     string? Identifier, string? Version, string? Scope, string? Source, string? Remote, string? Channel,
-    bool Classic, string? Arguments, string? Platform = null);
+    bool Classic, string? Arguments, string? Platform = null, string? Environment = null);
 
 public sealed record CreatePackageRequest(
     string? Name, string? Description, string? Kind, PackageSpecDto? Spec, List<Guid>? DependsOn = null);
@@ -103,7 +103,8 @@ public sealed record InstallPsadtPayload(
 /// <summary>Content of the job "install-repo": installs or updates a package through the device's package manager.</summary>
 public sealed record InstallRepoPayload(
     string Manager, string Identifier, string? Version, string? Scope, string? Source, string? Remote,
-    string? Channel, bool Classic, string? Arguments, int TimeoutMinutes, bool Uninstall = false);
+    string? Channel, bool Classic, string? Arguments, int TimeoutMinutes, bool Uninstall = false,
+    string? Environment = null);
 
 public sealed record ComplianceRowDto(
     Guid DeviceId, string DeviceName, Guid PackageId, string PackageName, string Reason,
