@@ -71,6 +71,12 @@ Winget, Chocolatey, APT, RPM, Flatpak and Snap. ODM stores only the configuratio
   package manager is missing).
 - **Additional arguments** are appended to the command (split like a shell would, but without a shell). For PSADT they are passed to the script,
   which must declare the parameters. They apply to installation only, not to uninstallation.
+- **Environment variables (APT)**, one `NAME=value` per line (at most 20), are set for `apt-get update`, installation, update and
+  uninstallation, e.g. `HTTP_PROXY` or a variable a package's maintainer scripts read. `{{secret:NAME}}` works in values.
+  `DEBIAN_FRONTEND`, `NEEDRESTART_MODE` and `LC_ALL` are set by the agent and cannot be overridden (they keep runs unattended and
+  the output readable for ODM); `PATH` and `LD_*` are not allowed. Requires agent 0.9.0: older agents ignore the variables.
+  Answers to package questions (debconf, e.g. Postfix) are not environment variables; use a Linux PSADT package with
+  `debconf-set-selections` for those.
 
 **Scope = user (Winget, Flatpak)** installs for the signed-in user, not for the agent's account:
 
@@ -88,7 +94,7 @@ Known limits:
 
 ## Secrets
 
-**Software → Secrets** (create and change: administrators only). In arguments write `{{secret:NAME}}`. The value is stored
+**Software → Secrets** (create and change: administrators only). In arguments (and APT environment variables) write `{{secret:NAME}}`. The value is stored
 encrypted (AES-256-GCM), never shown and not shipped with the job: the agent fetches it at execution time, only for secrets
 the running job uses, and removes secret values from the output before reporting.
 

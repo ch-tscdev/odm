@@ -441,7 +441,7 @@ internal static partial class PackageEndpoints
     private static string RevisionLabel(PackageSpec spec, int number) => $"{spec.Version ?? "latest"} (r{number})";
 
     private static PackageSpecDto ToDto(PackageSpec s) =>
-        new(s.Identifier, s.Version, s.Scope, s.Source, s.Remote, s.Channel, s.Classic, s.Arguments, s.Platform);
+        new(s.Identifier, s.Version, s.Scope, s.Source, s.Remote, s.Channel, s.Classic, s.Arguments, s.Platform, s.Environment);
 
     private static IResult Invalid(string field, string message) =>
         Results.ValidationProblem(new Dictionary<string, string[]> { [field] = [message] });
