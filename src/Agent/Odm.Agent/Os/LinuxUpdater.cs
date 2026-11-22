@@ -14,6 +14,11 @@ public sealed class LinuxUpdater : IOsUpdater
     // Staged rollouts are controlled by ODM itself, so all available updates are included.
     private const string IncludePhased = "APT::Get::Always-Include-Phased-Updates=true";
 
+    // Plain "apt-get upgrade" never installs new packages, so updates that need one are "kept back": above all every
+    // kernel update (the linux-generic metapackage depends on the new linux-image-<version> package). --with-new-pkgs
+    // installs such dependencies but, unlike dist-upgrade/full-upgrade, never removes installed packages.
+    private const string WithNewPackages = "--with-new-pkgs";
+
     private static readonly IReadOnlyDictionary<string, string> RpmEnvironment = new Dictionary<string, string>
     {
         ["LC_ALL"] = "C"
@@ -48,7 +53,7 @@ public sealed class LinuxUpdater : IOsUpdater
         }
 
         // Simulation: which packages would be upgraded? ("Inst name [old] (new source ...)")
-        var simulation = await ProcessRunner.RunAsync("/usr/bin/apt-get", ["-s", "-o", IncludePhased, "upgrade"], timeout, ct, AptEnvironment);
+        var simulation = await ProcessRunner.RunAsync("/usr/bin/apt-get", AptSimulationArguments(), timeout, ct, AptEnvironment);
         var lines = simulation.Output
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(l => l.StartsWith("Inst ", StringComparison.Ordinal))
@@ -65,6 +70,32 @@ public sealed class LinuxUpdater : IOsUpdater
             return new OsUpdateResult(true, 0, 0, [], AptRebootRequired(), "No updates available.");
         }
 
+        // Security only names the upgraded packages; new ones (e.g. the next kernel image) follow as their dependencies.
+        var upgradable = lines.Where(IsUpgrade).Select(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1]).Distinct().ToList();
+        if (securityOnly && upgradable.Count == 0)
+        {
+            return new OsUpdateResult(true, 0, 0, [], AptRebootRequired(), "No updates available.");
+        }
+
+        var upgrade = await ProcessRunner.RunAsync("/usr/bin/apt-get", AptUpgradeArguments(securityOnly, upgradable), timeout, ct, AptEnvironment);
+        if (upgrade.TimedOut || upgrade.ExitCode != 0)
+        {
+            return new OsUpdateResult(false, 0, packages.Count, Titles(titles), AptRebootRequired(),
+                upgrade.TimedOut ? "Timed out." : $"apt-get failed (exit code {upgrade.ExitCode}). {Tail(upgrade.Error)}");
+        }
+
+        return new OsUpdateResult(true, packages.Count, 0, Titles(titles), AptRebootRequired(), null);
+    }
+
+    /// <summary>Simulated upgrade, including updates that need new packages (kernel) and phased updates.</summary>
+    public static List<string> AptSimulationArguments() => ["-s", "-o", IncludePhased, "upgrade", WithNewPackages];
+
+    /// <summary>
+    /// All updates: "upgrade --with-new-pkgs". Security only: "install --only-upgrade" with the upgraded packages of the
+    /// simulation; --only-upgrade applies to the named packages only, so apt still installs new packages they depend on.
+    /// </summary>
+    public static List<string> AptUpgradeArguments(bool securityOnly, IReadOnlyList<string> packages)
+    {
         List<string> arguments =
         [
             "-y", "-q",
@@ -79,17 +110,17 @@ public sealed class LinuxUpdater : IOsUpdater
         }
         else
         {
-            arguments.Add("upgrade");
+            arguments.AddRange(["upgrade", WithNewPackages]);
         }
 
-        var upgrade = await ProcessRunner.RunAsync("/usr/bin/apt-get", arguments, timeout, ct, AptEnvironment);
-        if (upgrade.TimedOut || upgrade.ExitCode != 0)
-        {
-            return new OsUpdateResult(false, 0, packages.Count, Titles(titles), AptRebootRequired(),
-                upgrade.TimedOut ? "Timed out." : $"apt-get failed (exit code {upgrade.ExitCode}). {Tail(upgrade.Error)}");
-        }
+        return arguments;
+    }
 
-        return new OsUpdateResult(true, packages.Count, 0, Titles(titles), AptRebootRequired(), null);
+    /// <summary>"Inst name [old] (new ...)" upgrades an installed package; without "[old]" the package is new.</summary>
+    public static bool IsUpgrade(string installLine)
+    {
+        var parts = installLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 2 && parts[2].StartsWith('[');
     }
 
     private static bool AptRebootRequired() =>

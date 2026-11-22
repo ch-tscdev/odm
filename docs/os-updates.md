@@ -13,7 +13,9 @@
 ## How the agent updates
 
 - **Windows:** Windows Update Agent API (COM, called directly from the agent without a script or an extra process) as SYSTEM. *Security only* = categories Security Updates and Critical Updates.
-- **Linux (DEB):** `apt-get update`, then `upgrade`; for *security only* just packages from `*-security` sources.
+- **Linux (DEB):** `apt-get update`, then `upgrade --with-new-pkgs`: like `apt upgrade`, updates that need new packages (above all
+  kernel updates) are installed, but no package is removed (unlike `full-upgrade`). For *security only* just packages from
+  `*-security` sources (plus the new packages they depend on). Old kernels are not removed automatically (`apt autoremove`).
 - **Linux (RPM):** `dnf` or `yum` (`--security` for *security only*).
 - **Restart:** only if the policy allows it, a restart is required and at least 5 minutes remain in the window. It is scheduled with
   a 2-minute delay so the agent can report the result first. A job that reaches the agent just before the window ends (device was offline) is not started.
